@@ -10,7 +10,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2018",
-    "declaration": false,
+    "declaration": true,
     "sourceRoot": "src",
     "outDir": "dist",
     "typeRoots": [
