@@ -9,12 +9,12 @@ export interface ExecutableValidators {
 
 export interface BodyValidationDefinition {
 
-  [key: string]: AsyncValidatorFunction|ValidatorFunction|BodyValidationDefinition;
+  [key: string]: AsyncValidatorFunction|ValidatorFunction|BodyValidationDefinition|ExecutableValidators;
 
 }
 
 export interface ValidationDefinition {
 
-  [key: string]: AsyncValidatorFunction|ValidatorFunction;
+  [key: string]: AsyncValidatorFunction|ValidatorFunction|ExecutableValidators;
 
 }
