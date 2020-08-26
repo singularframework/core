@@ -1,0 +1,44 @@
+{
+  "name": "@singular/core",
+  "version": "1.0.0-alpha1",
+  "description": "Singular framework core module",
+  "main": "dist/@singular/main.js",
+  "scripts": {
+    "start": "./node_modules/typescript/bin/tsc --build",
+    "docs": "./node_modules/typedoc/bin/typedoc --out docs src",
+    "test": "./node_modules/typescript/bin/tsc -p test/tsconfig.json && ./node_modules/mocha/bin/mocha ./test/dist/main.spec.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/singularframework/core.git"
+  },
+  "keywords": [
+    "singular",
+    "framework",
+    "nodejs",
+    "node",
+    "typescript",
+    "backend",
+    "server",
+    "express",
+    "http",
+    "validation"
+  ],
+  "author": "Ramtin Soltani <ramtin@chiselpowered.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/singularframework/core/issues"
+  },
+  "homepage": "https://github.com/singularframework/core#readme",
+  "dependencies": {
+    "luxon": "^1.25.0"
+  },
+  "devDependencies": {
+    "@types/luxon": "^1.24.3",
+    "@types/mocha": "^8.0.3",
+    "@types/node": "^14.6.0",
+    "mocha": "^8.1.2",
+    "typedoc": "^0.18.0",
+    "typescript": "^4.0.2"
+  }
+}
