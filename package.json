@@ -5,7 +5,6 @@
   "main": "dist/core.js",
   "scripts": {
     "start": "./node_modules/typescript/bin/tsc --build",
-    "postinstall": "./node_modules/typescript/bin/tsc --build",
     "docs": "./node_modules/typedoc/bin/typedoc --out docs src",
     "test": "./node_modules/typescript/bin/tsc -p test/tsconfig.json && ./node_modules/mocha/bin/mocha ./test/dist/main.spec.js"
   },
