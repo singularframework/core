@@ -80,6 +80,9 @@ export class Singular {
     (<any>global).log = new ServerLogger(new ServerLoggerCore(this.__config));
     (<any>global).session = new ServerSessionManagerInternal(!! this.__config.sessionManagement, !! this.__config.cookieSecret);
 
+    // Set error response logs
+    (<any>global).ServerError.__logResponseErrors = this.__config.logResponseErrors;
+
   }
 
   /** Sanitizes the config object (must be run right after config is loaded). */

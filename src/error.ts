@@ -1,4 +1,4 @@
-import { Response } from '@singular/common';
+import { Response, Request } from '@singular/common';
 
 export class ServerError {
 
@@ -10,6 +10,9 @@ export class ServerError {
     public httpCode: number = 500,
     public code: string = 'UNKOWN_ERROR'
   ) { }
+
+  /** Determines whether errors responded with ServerError.respond should be logged or not. */
+  private static __logResponseErrors: boolean;
 
   /**
   * Returns a new ServerError from an Error object.
@@ -30,14 +33,21 @@ export class ServerError {
   /**
   * Responds to request with current error.
   * @param res An Express response object.
+  * @param req An Express request object.
   */
-  public respond(res: Response) {
+  public respond(res: Response, req?: Request) {
 
     res.status(this.httpCode).json({
       error: this.error,
       message: this.message,
       code: this.code
     });
+
+    if ( ! ServerError.__logResponseErrors ) return;
+
+    const logger = (req && req.sessionId ? log.id(req.sessionId) : log)[this.httpCode === 500 ? 'warn' : 'debug'];
+
+    logger(`Responded to request with status ${this.httpCode} and error code "${this.code}"!`);
 
   }
 
