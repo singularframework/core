@@ -805,6 +805,8 @@ export class Singular {
       paths
     });
 
+    return this;
+
   }
 
   /** Registers a config profile. */
