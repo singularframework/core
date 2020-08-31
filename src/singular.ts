@@ -13,6 +13,7 @@ import { ServerEventManager } from './events';
 import { ServerSessionManagerInternal } from './session';
 import { ServerError } from './error';
 import { RequestHandler } from 'express';
+import callsites from 'callsites';
 import {
   Request,
   Response,
@@ -797,11 +798,11 @@ export class Singular {
 
   }
 
-  /** Registers all path aliases from the given root directory. */
-  public registerAliases(rootDir: string, paths: PathAliases) {
+  /** Registers all path aliases. */
+  public registerAliases(paths: PathAliases) {
 
     tsConfigPaths.register({
-      baseUrl: rootDir,
+      baseUrl: path.dirname(callsites()[1].getFileName()),
       paths
     });
 
@@ -812,16 +813,16 @@ export class Singular {
   /** Registers a config profile. */
   public config(profile: string, config: ServerConfig) {
 
-    this.__configProfiles[profile] = _.assign(Singular.__CONFIG_DEFAULT, config);
+    this.__configProfiles[profile] = _.assign({}, Singular.__CONFIG_DEFAULT, config);
 
     return this;
 
   }
 
-  /** Scans the given root directory (absolute path) and install all components. */
-  public installComponents(rootDir: string) {
+  /** Scans the root directory (where this method is called from) and installs all components. */
+  public installComponents() {
 
-    this.__scanDirRec(rootDir)
+    this.__scanDirRec(path.dirname(callsites()[1].getFileName()))
     .filter(file => !! path.basename(file).match(/^(.+)\.((service)|(router))\.js$/))
     .forEach(file => this.__installComponent(file));
 
@@ -838,6 +839,9 @@ export class Singular {
   * @param configProfile A config profile name to use instead of the default server config (defaults to SINGULAR_CONFIG_PROFILE environment variable).
   */
   public async launch(configProfile: string = process.env.SINGULAR_CONFIG_PROFILE) {
+
+    // Get main file's directory path
+    (<any>global).__rootdir = path.dirname(callsites()[1].getFileName());
 
     // If config profile not provided or not found
     if ( ! configProfile || ! this.__configProfiles.hasOwnProperty(configProfile) ) {
@@ -871,7 +875,7 @@ export class Singular {
     // Log all cached logs
     for ( const cached of this.__cachedLogs ) {
 
-      log[cached.level](cached.message, ...cached.additionalMessages);
+      log[cached.level](cached.message);
 
     }
 

@@ -7,10 +7,16 @@ import { ServerError } from './error';
 
 declare global {
 
+  /** Global logger. */
   const log: ServerLogger;
+  /** Global event manager. */
   const events: ServerEventManager;
+  /** Global session manager. */
   const session: ServerSessionManager;
+  /** Global server error constructor. */
   const ServerError: ServerError;
+  /** Root directory path. */
+  const __rootdir: string;
 
 }
 

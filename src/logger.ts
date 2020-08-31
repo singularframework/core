@@ -206,7 +206,7 @@ class LogWriter {
 
   private queue: { log: string; filename: string; }[] = [];
   private writing: boolean = false;
-  private logsDir: string = path.resolve(__dirname, '..', '.logs');
+  private logsDir: string = path.join(__rootdir, '.logs');
   private diskManagementActive: boolean = false;
   private logFiles: { filename: string; date: DateTime; }[] = [];
 
