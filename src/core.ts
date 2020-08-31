@@ -1,21 +1,19 @@
-export * from './models';
+import 'source-map-support/register';
+import { Singular as SingularClass } from './singular';
+import { ServerLogger } from './logger';
+import { ServerEventManager } from './events';
+import { ServerSessionManager } from './session';
+import { ServerError } from './error';
 
-/**
-* Resolves reference from raw values.
-*/
-export function resolveRef(ref: string, rawValues: any): any {
+declare global {
 
-  const segments = ref.split('.');
-  let currentRef: any = rawValues;
-
-  for ( const segment of segments ) {
-
-    if ( currentRef === undefined ) return undefined;
-
-    currentRef = currentRef[segment];
-
-  }
-
-  return currentRef;
+  const log: ServerLogger;
+  const events: ServerEventManager;
+  const session: ServerSessionManager;
+  const ServerError: ServerError;
 
 }
+
+export * from '@singular/common';
+export * from './decorators';
+export const Singular = new SingularClass();
