@@ -8,7 +8,7 @@ export class ServerError {
   constructor(
     public message: string,
     public httpCode: number = 500,
-    public code: string = 'UNKOWN_ERROR'
+    public code: string = 'UNKNOWN_ERROR'
   ) { }
 
   /** Determines whether errors responded with ServerError.respond should be logged or not. */
@@ -45,7 +45,7 @@ export class ServerError {
 
     if ( ! ServerError.__logResponseErrors ) return;
 
-    const logger = (req && req.sessionId ? log.id(req.sessionId) : log)[this.httpCode === 500 ? 'warn' : 'debug'];
+    const logger = (req && req.sessionId ? log.id(req.sessionId) : log)[this.httpCode === 500 ? 'warn' : 'debug'].bind(log);
 
     logger(`Responded to request with status ${this.httpCode} and error code "${this.code}"!`);
 
