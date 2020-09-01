@@ -182,7 +182,7 @@ export class Singular {
     this.__app.use(bodyParser.urlencoded({ extended: true }));
 
     // Install body parsing error
-    this.__app.use((error, req, res, next) => {
+    this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 
       new ServerError('Invalid body!', 400, 'INVALID_BODY').respond(res);
 
@@ -194,7 +194,7 @@ export class Singular {
     this.__app.use(cookieParser(this.__config.cookieSecret));
 
     // Install cookie parser error handler
-    this.__app.use((error, req, res, next) => {
+    this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 
       new ServerError('Invalid cookies!', 400, 'INVALID_COOKIES').respond(res);
 
@@ -721,12 +721,12 @@ export class Singular {
     }
 
     // Install error handler
-    this.__app.use((error, req, res, next) => {
+    this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 
       log.error('An unknown error has occured:', error);
       events.emit('error', error);
 
-      if ( ! res.headerSent ) new ServerError('An unknown error has occured!').respond(res);
+      if ( ! res.headersSent ) new ServerError('An unknown error has occured!').respond(res);
 
     });
 
