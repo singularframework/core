@@ -231,7 +231,7 @@ class LogWriter {
 
       if ( path.isAbsolute(this.__config.logFileDirPath) ) this.__logsDir = this.__config.logFileDirPath;
       else this.__logsDir = path.join(__rootdir, this.__config.logFileDirPath);
-      
+
     }
 
     // Ensure logs directory
@@ -251,7 +251,7 @@ class LogWriter {
 
       // Scan the .logs directory to determine the old logs
       this.__logFiles = fs.readdirSync(this.__logsDir, { withFileTypes: true })
-      .filter(file => file.isFile && file.name.match(/^\d{2}-\d{2}-\d{4}\.log$/))
+      .filter(file => file.isFile() && file.name.match(/^\d{2}-\d{2}-\d{4}\.log$/))
       .map(file => {
 
         const date = DateTime.fromFormat(file.name.substr(0, 10), 'dd-LL-yyyy');
