@@ -798,6 +798,21 @@ export class Singular {
 
   }
 
+  /** Scans the root directory and installs all components. */
+  private __installComponents() {
+
+    this.__scanDirRec(__rootdir)
+    .filter(file => !! path.basename(file).match(/^(.+)\.((service)|(router))\.js$/))
+    .forEach(file => this.__installComponent(file));
+
+    // Sort components based on priority
+    this.__routers = _.orderBy(this.__routers, router => router.module.__metadata.priority, ['desc']);
+    this.__services = _.orderBy(this.__services, service => service.module.__metadata.priority, ['desc']);
+
+    return this;
+
+  }
+
   /** Registers all path aliases. */
   public registerAliases(paths: PathAliases) {
 
@@ -814,21 +829,6 @@ export class Singular {
   public config(profile: string, config: ServerConfig) {
 
     this.__configProfiles[profile] = _.assign({}, Singular.__CONFIG_DEFAULT, config);
-
-    return this;
-
-  }
-
-  /** Scans the root directory (where this method is called from) and installs all components. */
-  public installComponents() {
-
-    this.__scanDirRec(path.dirname(callsites()[1].getFileName()))
-    .filter(file => !! path.basename(file).match(/^(.+)\.((service)|(router))\.js$/))
-    .forEach(file => this.__installComponent(file));
-
-    // Sort components based on priority
-    this.__routers = _.orderBy(this.__routers, router => router.module.__metadata.priority, ['desc']);
-    this.__services = _.orderBy(this.__services, service => service.module.__metadata.priority, ['desc']);
 
     return this;
 
@@ -881,6 +881,9 @@ export class Singular {
 
     // Clear cached logs
     this.__cachedLogs = [];
+
+    // Scan and install all components
+    this.__installComponents();
 
     // Mount default top middleware
     this.__mountDefaultTopMiddleware();
