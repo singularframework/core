@@ -242,7 +242,7 @@ export class ServerEventManager {
     if ( ! this.__events.hasOwnProperty(event) ) this.__initEvent(event);
 
     if ( this.__events[event].once ) this.__callListener(event, listener);
-    else this.__events[event].listeners.push({
+    else this.__events[event].listeners.unshift({
       once: true,
       listener
     });

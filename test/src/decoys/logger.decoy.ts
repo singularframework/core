@@ -41,6 +41,15 @@ export class LoggerDecoy {
 
   }
 
+  public error(...args: any[]) {
+
+    this.__history.push({
+      name: 'error',
+      args
+    });
+
+  }
+
   public id(...args: any[]) {
 
     this.__history.push({
