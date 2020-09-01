@@ -226,7 +226,15 @@ class LogWriter {
     private __onMessage: (message: string) => void
   ) {
 
-    // Ensure .logs directory
+    // Overwrite logs directory path (if provided)
+    if ( this.__config.logFileDirPath ) {
+
+      if ( path.isAbsolute(this.__config.logFileDirPath) ) this.__logsDir = this.__config.logFileDirPath;
+      else this.__logsDir = path.join(__rootdir, this.__config.logFileDirPath);
+      
+    }
+
+    // Ensure logs directory
     fs.ensureDirSync(this.__logsDir);
 
     // Activate disk management if max age is set
