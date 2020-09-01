@@ -108,21 +108,24 @@ export class ServerLoggerCore {
 
   constructor(public config: ServerConfig) {
 
+    let cachedDiskLogs = [];
+
     // Reset timezone to local if it is invalid
     if ( ! DateTime.local().setZone(config.timezone).isValid ) {
 
       const defaultZone = DateTime.local().zone.name;
+      const logMessage = `Invalid server timezone "${config.timezone}"! Timezone is set to "${defaultZone}"`;
+
+      config.timezone = defaultZone;
 
       // Show warning
-      const log = this.formatLog('warn', [`Invalid server timezone "${config.timezone}"! Timezone is set to "${defaultZone}"`]);
+      const log = this.formatLog('warn', [logMessage]);
 
       // Log to console
       if ( this.canLog('console', 'warn') ) console.warn(log);
 
-      // Log to file
-      if ( this.canLog('file', 'warn') ) this.writer.writeToDisk(log);
-
-      config.timezone = defaultZone;
+      // Log to file (cache the warning since writer is not instantiated yet)
+      if ( this.canLog('file', 'warn') ) cachedDiskLogs.push(log);
 
     }
 
@@ -138,6 +141,13 @@ export class ServerLoggerCore {
       if ( this.canLog('console', 'debug') ) console.debug(this.formatLog('debug', [message]));
 
     });
+
+    // Write all cached logs
+    while ( cachedDiskLogs.length ) {
+
+      this.writer.writeToDisk(cachedDiskLogs.shift());
+
+    }
 
   }
 
@@ -204,35 +214,35 @@ export class ServerLoggerCore {
 
 class LogWriter {
 
-  private queue: { log: string; filename: string; }[] = [];
-  private writing: boolean = false;
-  private logsDir: string = path.join(__rootdir, '.logs');
-  private diskManagementActive: boolean = false;
-  private logFiles: { filename: string; date: DateTime; }[] = [];
+  private __queue: { log: string; filename: string; }[] = [];
+  private __writing: boolean = false;
+  private __logsDir: string = path.join(__rootdir, '.logs');
+  private __diskManagementActive: boolean = false;
+  private __logFiles: { filename: string; date: DateTime; }[] = [];
 
   constructor(
-    private config: ServerConfig,
-    private onError: (error: Error) => void,
-    private onMessage: (message: string) => void
+    private __config: ServerConfig,
+    private __onError: (error: Error) => void,
+    private __onMessage: (message: string) => void
   ) {
 
     // Ensure .logs directory
-    fs.ensureDirSync(this.logsDir);
+    fs.ensureDirSync(this.__logsDir);
 
     // Activate disk management if max age is set
-    if ( this.config.logFileMaxAge > 0 ) this.activateDiskManagement();
+    if ( this.__config.logFileMaxAge > 0 ) this.__activateDiskManagement();
 
   }
 
   /**
   * Scans the .logs directory and updates this.logFiles with a list of valid log files.
   */
-  private updateLogFiles() {
+  private __updateLogFiles() {
 
     try {
 
       // Scan the .logs directory to determine the old logs
-      this.logFiles = fs.readdirSync(this.logsDir, { withFileTypes: true })
+      this.__logFiles = fs.readdirSync(this.__logsDir, { withFileTypes: true })
       .filter(file => file.isFile && file.name.match(/^\d{2}-\d{2}-\d{4}\.log$/))
       .map(file => {
 
@@ -250,7 +260,7 @@ class LogWriter {
     catch (error) {
 
       error.message = `Could not read .logs directory: ${error.message}`;
-      this.onError(error);
+      this.__onError(error);
 
     }
 
@@ -262,40 +272,40 @@ class LogWriter {
   * When activated, it scans the .logs directory once only. If new files are created,
   * the directory should be rescanned again using this.updateLogFiles().
   */
-  private activateDiskManagement() {
+  private __activateDiskManagement() {
 
-    if ( this.diskManagementActive ) return;
+    if ( this.__diskManagementActive ) return;
 
-    this.diskManagementActive = true;
+    this.__diskManagementActive = true;
 
-    this.updateLogFiles();
+    this.__updateLogFiles();
 
     // Check all scanned log files every second
     setInterval(() => {
 
-      const currentDate = DateTime.local().setZone(this.config.timezone);
+      const currentDate = DateTime.local().setZone(this.__config.timezone);
 
-      for ( let i = 0; i < this.logFiles.length; i++ ) {
+      for ( let i = 0; i < this.__logFiles.length; i++ ) {
 
-        const file = this.logFiles[i];
+        const file = this.__logFiles[i];
         const diff = currentDate.diff(file.date, 'days');
 
         // Manage logs file if the target time difference is passed
-        if ( Math.floor(diff.days) >= this.config.logFileMaxAge ) {
+        if ( Math.floor(diff.days) >= this.__config.logFileMaxAge ) {
 
           // Delete from this.logFiles
-          this.logFiles.splice(i, 1);
+          this.__logFiles.splice(i, 1);
           i--;
 
           // Archive logs file
-          if ( this.config.archiveLogs ) {
+          if ( this.__config.archiveLogs ) {
 
-            this.archiveLogs(file.filename)
-            .then(() => this.onMessage(`Logs file "${file.filename}" was archived`))
+            this.__archiveLogs(file.filename)
+            .then(() => this.__onMessage(`Logs file "${file.filename}" was archived`))
             .catch(error => {
 
               error.message = `Could not archive logs file "${file.filename}": ${error.message}`;
-              this.onError(error);
+              this.__onError(error);
 
             });
 
@@ -303,12 +313,12 @@ class LogWriter {
           // Delete logs file
           else {
 
-            fs.remove(path.join(this.logsDir, file.filename))
-            .then(() => this.onMessage(`Logs file "${file.filename}" was deleted`))
+            fs.remove(path.join(this.__logsDir, file.filename))
+            .then(() => this.__onMessage(`Logs file "${file.filename}" was deleted`))
             .catch(error => {
 
               error.message = `Could not delete logs file "${file.filename}": ${error.message}`;
-              this.onError(error);
+              this.__onError(error);
 
             });
 
@@ -326,24 +336,24 @@ class LogWriter {
   * Archives the specified logs file by moving it to .logs/archived and compressing it.
   * @param filename The filename of the log file to archive.
   */
-  private async archiveLogs(filename: string) {
+  private async __archiveLogs(filename: string) {
 
     // Ensure .logs/archived
-    await fs.ensureDir(path.join(this.logsDir, 'archived'));
+    await fs.ensureDir(path.join(this.__logsDir, 'archived'));
 
     // Compress the logs file
     await new Promise<void>((resolve, reject) => {
 
-      fs.createReadStream(path.join(this.logsDir, filename))
+      fs.createReadStream(path.join(this.__logsDir, filename))
       .pipe(createGzip())
-      .pipe(fs.createWriteStream(path.join(this.logsDir, 'archived', filename + '.gz')))
+      .pipe(fs.createWriteStream(path.join(this.__logsDir, 'archived', filename + '.gz')))
       .on('error', reject)
       .on('finish', resolve);
 
     });
 
     // Delete the original file
-    await fs.remove(path.join(this.logsDir, filename));
+    await fs.remove(path.join(this.__logsDir, filename));
 
   }
 
@@ -352,17 +362,17 @@ class LogWriter {
   * @param log The log (with no colors).
   * @param filename The filename.
   */
-  private appendLog(log: string, filename: string) {
+  private __appendLog(log: string, filename: string) {
 
     return new Promise<void>((resolve, reject) => {
 
       // If file is new and archiving is enabled, set the scan directory flag
-      const newFile: boolean = ! this.logFiles.filter(file => file.filename === filename).length && this.config.archiveLogs;
+      const newFile: boolean = ! this.__logFiles.filter(file => file.filename === filename).length && this.__config.archiveLogs;
 
-      fs.appendFile(path.join(this.logsDir, filename), log + os.EOL, { encoding: 'utf-8' }, error => {
+      fs.appendFile(path.join(this.__logsDir, filename), log + os.EOL, { encoding: 'utf-8' }, error => {
 
         // Rescan the .logs directory if this file was new so archiving can detect this
-        if ( newFile ) this.updateLogFiles();
+        if ( newFile ) this.__updateLogFiles();
 
         if ( error ) reject(error);
         else resolve();
@@ -382,23 +392,23 @@ class LogWriter {
   public async writeToDisk(log: string) {
 
     // If queue is busy, just add the log to it
-    this.queue.push({
+    this.__queue.push({
       log: stripAnsi(log),
-      filename: DateTime.local().setZone(this.config.timezone).toFormat('dd-LL-yyyy') + '.log'
+      filename: DateTime.local().setZone(this.__config.timezone).toFormat('dd-LL-yyyy') + '.log'
     });
 
-    if ( this.writing ) return;
+    if ( this.__writing ) return;
 
     // Otherwise, execute the queue
-    this.writing = true;
+    this.__writing = true;
 
-    while ( this.queue.length ) {
+    while ( this.__queue.length ) {
 
-      const item = this.queue.shift();
+      const item = this.__queue.shift();
 
       try {
 
-        await this.appendLog(item.log, item.filename);
+        await this.__appendLog(item.log, item.filename);
 
       }
       // Could not write log to disk.
@@ -407,13 +417,13 @@ class LogWriter {
       catch (error) {
 
         error.message = 'Could not write log to file: ' + error.message;
-        this.onError(error);
+        this.__onError(error);
 
       }
 
     }
 
-    this.writing = false;
+    this.__writing = false;
 
   }
 
