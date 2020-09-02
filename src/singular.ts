@@ -185,8 +185,8 @@ export class Singular {
     // Install body parsers
     this.__app.use(bodyParser.text());
     this.__app.use(bodyParser.json());
-    this.__app.use(bodyParser.raw({ limit: this.__config.fileUploadLimit }));
     this.__app.use(bodyParser.urlencoded({ extended: true }));
+    this.__app.use(bodyParser.raw({ type: 'application/octet-stream', limit: this.__config.fileUploadLimit }));
 
     // Install body parsing error
     this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
