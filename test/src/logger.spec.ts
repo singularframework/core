@@ -7,6 +7,8 @@ import fs from 'fs-extra';
 import stripAnsi from 'strip-ansi';
 import { wait } from './util';
 import readline from 'readline';
+import { DateTime } from 'luxon';
+import zlib from 'zlib';
 
 describe('ServerLogger', function() {
 
@@ -149,17 +151,221 @@ describe('ServerLogger', function() {
 
     expect(logNumber).to.equal(10004);
 
-  });
-
-  it('should delete logs correctly', function() {
-
-
+    // Clean up
+    await fs.remove(path.resolve(__dirname, '.logs'));
 
   });
 
-  it('should archive logs correctly', function() {
+  it('should delete logs correctly based on max age', async function() {
 
+    this.timeout(10000);
 
+    // Patch setInterval to extract all timeouts
+    const intervals: NodeJS.Timeout[] = [];
+    const originalSetInterval = setInterval;
+
+    (<any>global).setInterval = (cb, ms, ...args: any[]) => {
+
+      const interval = originalSetInterval(cb, ms, ...args);
+
+      intervals.push(interval);
+
+      return interval;
+
+    };
+
+    // Create logger
+    const log = new ServerLogger(new ServerLoggerCore(Object.assign({}, (<any>Singular).__CONFIG_DEFAULT, {
+      archiveLogs: false,
+      writeLogsToFile: true,
+      logFileDirPath: './.logs',
+      logFileMaxAge: 1, // One day max age for logs on disk
+      consoleLogLevels: []
+    })));
+
+    log.info('This log should be deleted by the disk manager');
+
+    // Give the logger time to create the file and write the log
+    await wait(500);
+
+    // Expect one file with the correct date as name to exist
+    const filename = path.resolve(__dirname, '.logs', DateTime.local().toFormat('dd-LL-yyyy') + '.log');
+
+    expect(await fs.pathExists(filename)).to.be.true;
+
+    // Trick the disk management to think it's tomorrow
+    const originalLocal = DateTime.local;
+
+    DateTime.local = () => DateTime.fromMillis(Date.now() + (24 * 60 * 60 * 1000));
+
+    // Give disk management time to detect and delete the logs
+    await wait(1500);
+
+    // Expect the file to be deleted
+    expect(await fs.pathExists(filename)).to.be.false;
+
+    // Unpatch DateTime
+    DateTime.local = originalLocal;
+
+    // Clear all intervals so the process can end
+    for ( const interval of intervals ) {
+
+      clearInterval(interval);
+
+    }
+
+    // Clean up
+    await fs.remove(path.resolve(__dirname, '.logs'));
+
+  });
+
+  it('should archive logs correctly based on max age', async function() {
+
+    this.timeout(10000);
+
+    // Patch setInterval to extract all timeouts
+    const intervals: NodeJS.Timeout[] = [];
+    const originalSetInterval = setInterval;
+
+    (<any>global).setInterval = (cb, ms, ...args: any[]) => {
+
+      const interval = originalSetInterval(cb, ms, ...args);
+
+      intervals.push(interval);
+
+      return interval;
+
+    };
+
+    // Create logger
+    const log = new ServerLogger(new ServerLoggerCore(Object.assign({}, (<any>Singular).__CONFIG_DEFAULT, {
+      archiveLogs: true,
+      writeLogsToFile: true,
+      logFileDirPath: './.logs',
+      logFileMaxAge: 1, // One day max age for logs on disk
+      consoleLogLevels: []
+    })));
+
+    log.info('This log should be archived by the disk manager');
+
+    // Give the logger time to create the file and write the log
+    await wait(500);
+
+    // Expect one file with the correct date as name to exist
+    const filename = path.resolve(__dirname, '.logs', DateTime.local().toFormat('dd-LL-yyyy') + '.log');
+    const archiveFilename = path.resolve(__dirname, '.logs', 'archived', DateTime.local().toFormat('dd-LL-yyyy') + '.log.gz');
+
+    expect(await fs.pathExists(filename)).to.be.true;
+
+    // Trick the disk management to think it's tomorrow
+    const originalLocal = DateTime.local;
+
+    DateTime.local = () => DateTime.fromMillis(Date.now() + (24 * 60 * 60 * 1000));
+
+    // Give disk management time to detect and delete the logs
+    await wait(1500);
+
+    // Expect the file to be deleted in .logs directory
+    expect(await fs.pathExists(filename)).to.be.false;
+
+    // Expect the file to be archived
+    expect(await fs.pathExists(archiveFilename)).to.be.true;
+
+    // Unzip the file and check the logs inside
+    let archivedLogs = '';
+
+    await new Promise((resolve, reject) => {
+
+      fs.createReadStream(archiveFilename)
+      .pipe(zlib.createGunzip())
+      .on('data', chunk => archivedLogs += chunk.toString())
+      .on('close', resolve)
+      .on('error', reject);
+
+    });
+
+    expect(archivedLogs.includes('This log should be archived by the disk manager')).to.be.true;
+
+    // Unpatch DateTime
+    DateTime.local = originalLocal;
+
+    // Clear all intervals so the process can end
+    for ( const interval of intervals ) {
+
+      clearInterval(interval);
+
+    }
+
+    // Clean up
+    await fs.remove(path.resolve(__dirname, '.logs'));
+
+  });
+
+  it('should write logs to custom path on disk correctly', async function() {
+
+    this.timeout(10000);
+
+    // Patch setInterval to extract all timeouts
+    const intervals: NodeJS.Timeout[] = [];
+    const originalSetInterval = setInterval;
+
+    (<any>global).setInterval = (cb, ms, ...args: any[]) => {
+
+      const interval = originalSetInterval(cb, ms, ...args);
+
+      intervals.push(interval);
+
+      return interval;
+
+    };
+
+    // Create logger
+    const log = new ServerLogger(new ServerLoggerCore(Object.assign({}, (<any>Singular).__CONFIG_DEFAULT, {
+      archiveLogs: true,
+      writeLogsToFile: true,
+      logFileDirPath: path.resolve(__dirname, 'customdir', 'logs'),
+      logFileArchiveDirPath: './customdir/archived',
+      logFileMaxAge: 1, // One day max age for logs on disk
+      consoleLogLevels: []
+    })));
+
+    log.info('This log should be archived by the disk manager');
+
+    // Give the logger time to create the file and write the log
+    await wait(500);
+
+    // Expect one file with the correct date as name to exist
+    const filename = path.resolve(__dirname, 'customdir', 'logs', DateTime.local().toFormat('dd-LL-yyyy') + '.log');
+    const archiveFilename = path.resolve(__dirname, 'customdir', 'archived', DateTime.local().toFormat('dd-LL-yyyy') + '.log.gz');
+
+    expect(await fs.pathExists(filename)).to.be.true;
+
+    // Trick the disk management to think it's tomorrow
+    const originalLocal = DateTime.local;
+
+    DateTime.local = () => DateTime.fromMillis(Date.now() + (24 * 60 * 60 * 1000));
+
+    // Give disk management time to detect and delete the logs
+    await wait(1500);
+
+    // Expect the file to be deleted in customdir/logs directory
+    expect(await fs.pathExists(filename)).to.be.false;
+
+    // Expect the file to be archived
+    expect(await fs.pathExists(archiveFilename)).to.be.true;
+
+    // Unpatch DateTime
+    DateTime.local = originalLocal;
+
+    // Clear all intervals so the process can end
+    for ( const interval of intervals ) {
+
+      clearInterval(interval);
+
+    }
+
+    // Clean up
+    await fs.remove(path.resolve(__dirname, 'customdir'));
 
   });
 
