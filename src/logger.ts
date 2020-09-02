@@ -217,6 +217,7 @@ class LogWriter {
   private __queue: { log: string; filename: string; }[] = [];
   private __writing: boolean = false;
   private __logsDir: string = path.join(__rootdir, '.logs');
+  private __logsArchiveDir: string = path.join(this.__logsDir, 'archived');
   private __diskManagementActive: boolean = false;
   private __logFiles: { filename: string; date: DateTime; }[] = [];
 
@@ -231,6 +232,14 @@ class LogWriter {
 
       if ( path.isAbsolute(this.__config.logFileDirPath) ) this.__logsDir = this.__config.logFileDirPath;
       else this.__logsDir = path.join(__rootdir, this.__config.logFileDirPath);
+
+    }
+
+    // Overwrite logs archive directory path (if provided)
+    if ( this.__config.logFileArchiveDirPath ) {
+
+      if ( path.isAbsolute(this.__config.logFileArchiveDirPath) ) this.__logsArchiveDir = this.__config.logFileArchiveDirPath;
+      else this.__logsArchiveDir = path.join(__rootdir, this.__config.logFileArchiveDirPath);
 
     }
 
@@ -347,14 +356,14 @@ class LogWriter {
   private async __archiveLogs(filename: string) {
 
     // Ensure .logs/archived
-    await fs.ensureDir(path.join(this.__logsDir, 'archived'));
+    await fs.ensureDir(this.__logsArchiveDir);
 
     // Compress the logs file
     await new Promise<void>((resolve, reject) => {
 
       fs.createReadStream(path.join(this.__logsDir, filename))
       .pipe(createGzip())
-      .pipe(fs.createWriteStream(path.join(this.__logsDir, 'archived', filename + '.gz')))
+      .pipe(fs.createWriteStream(path.join(this.__logsArchiveDir, filename + '.gz')))
       .on('error', reject)
       .on('finish', resolve);
 
