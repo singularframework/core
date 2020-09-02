@@ -388,8 +388,8 @@ class LogWriter {
 
     return new Promise<void>((resolve, reject) => {
 
-      // If file is new and archiving is enabled, set the scan directory flag
-      const newFile: boolean = ! this.__logFiles.filter(file => file.filename === filename).length && this.__config.archiveLogs;
+      // If file is new and log max age is set, set the scan directory flag
+      const newFile: boolean = ! this.__logFiles.filter(file => file.filename === filename).length && this.__config.logFileMaxAge > 0;
 
       fs.appendFile(path.join(this.__logsDir, filename), log + os.EOL, { encoding: 'utf-8' }, error => {
 
