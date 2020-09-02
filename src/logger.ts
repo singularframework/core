@@ -129,6 +129,9 @@ export class ServerLoggerCore {
 
     }
 
+    // Do not instantiate write if file logs are disabled
+    if ( ! config.writeLogsToFile ) return;
+
     // Instantiate the log writer
     this.writer = new LogWriter(config, error => {
 
@@ -201,6 +204,8 @@ export class ServerLoggerCore {
 
     }
     else {
+
+      if ( ! this.config.writeLogsToFile ) return false;
 
       if ( this.config.logFileLevels === 'all' ) return true;
 

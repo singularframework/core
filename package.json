@@ -5,9 +5,9 @@
   "main": "dist/core.js",
   "scripts": {
     "postinstall": "(cd ./node_modules/@singular/common && npm install && npm start) || echo \"Post install failed!\"",
-    "start": "./node_modules/typescript/bin/tsc --build",
-    "docs": "./node_modules/typedoc/bin/typedoc --out docs src",
-    "test": "./node_modules/typescript/bin/tsc -p test/tsconfig.json && ./node_modules/mocha/bin/mocha ./test/dist/main.spec.js"
+    "start": "node ./node_modules/rimraf/bin.js \"./dist\" && ./node_modules/typescript/bin/tsc --build",
+    "docs": "node ./node_modules/rimraf/bin.js \"./docs\" && ./node_modules/typedoc/bin/typedoc --out docs src",
+    "test": "node ./node_modules/rimraf/bin.js \"./test/dist\" && ./node_modules/typescript/bin/tsc -p test/tsconfig.json && ./node_modules/mocha/bin/mocha ./test/dist/main.spec.js"
   },
   "repository": {
     "type": "git",
@@ -60,6 +60,7 @@
     "@types/source-map-support": "^0.5.3",
     "chai": "^4.2.0",
     "mocha": "^8.1.2",
+    "rimraf": "^3.0.2",
     "typedoc": "^0.18.0",
     "typescript": "^4.0.2"
   }
