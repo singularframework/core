@@ -13,7 +13,7 @@ export class ServerEventManager {
 
       this.__callListener(event, this.__events[event].listeners[i].listener);
 
-      if ( this.__events[event].listeners[i].once ) {
+      if ( this.__events[event].listeners[i].once || once ) {
 
         this.__events[event].listeners.splice(i, 1);
         i--;
@@ -130,7 +130,8 @@ export class ServerEventManager {
 
   /**
   * Emits an event once with the provided arguments.
-  * All future registered event handlers will be called immediately with these arguments.
+  * All current listeners will be called and then removed.
+  * All future registered event handlers will be called immediately with these arguments without being attached.
   * This event cannot be emitted anymore.
   * @param event An event name.
   * @param args Arguments to pass to listeners.

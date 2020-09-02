@@ -129,9 +129,14 @@ describe('ServerEventManager', function() {
     argsReceived = [];
 
     events.emitOnce('test', 4, 5);
+
+    // Listeners should be deleted after once emit
+    expect(events.listenersCount('test')).to.equal(0);
+
     events.emit('test', 4, 5);
     events.emitOnce('test', 4, 5);
 
+    // Listeners should have been run once
     expect(argsReceived).to.deep.equal([
       { name: 'handler2', args: [4, 5] },
       { name: 'handler2', args: [4, 5] }
@@ -141,10 +146,11 @@ describe('ServerEventManager', function() {
 
     events.on('test', (...args) => { argsReceived.push({ name: 'anon', args }); });
 
+    // Listener should have been run immediately without being attached
     expect(argsReceived).to.deep.equal([
       { name: 'anon', args: [4, 5] }
     ]);
-    expect(events.listenersCount('test')).to.equal(2);
+    expect(events.listenersCount('test')).to.equal(0);
 
     argsReceived = [];
 
