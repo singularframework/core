@@ -34,7 +34,8 @@ import {
   AsyncValidatorFunction,
   ValidationDefinition,
   BodyValidationDefinition,
-  ExecutableValidators
+  ExecutableValidators,
+  PluginEvents
 } from '@singular/common';
 
 export class Singular {
@@ -72,6 +73,12 @@ export class Singular {
   private __services: SingularComponent[] = [];
   /** Logs produced before the logger was initialized. */
   private __cachedLogs: CachedLog[] = [];
+  /** Plugin-specific event manager. */
+  private __pluginEvents = new ServerEventManager();
+  /** Installed plugins. */
+  private __plugins: Array<InstalledPlugin> = [];
+  /** The data to provide to plugins at different stages. */
+  private __pluginData: any = {};
 
   /** Initializes all globals (config must be loaded before calling this method). */
   private __initGlobals() {
@@ -813,6 +820,59 @@ export class Singular {
 
   }
 
+  /** Instantiates all plugins. */
+  private async __initPlugins() {
+
+    for ( const plugin of this.__plugins ) {
+
+      await plugin.function(this.__pluginEvents, plugin.config);
+
+    }
+
+  }
+
+  /** Updates the plugin data and emits the event. */
+  private __emitPluginEvent(event: string) {
+
+    // Update plugin date
+    if ( event === 'plugin:config:before' ) this.__pluginData = {
+      app: this.__app,
+      rootdir: __rootdir,
+      profiles: _.cloneDeep(this.__configProfiles)
+    };
+    if ( event === 'plugin:config:after' ) this.__pluginData.config = _.cloneDeep(this.__config);
+    if ( event === 'plugin:middleware:internal:before' ) this.__pluginData.components = {
+      routers: this.__routers.map(r => ({
+        metadata: r.module.__metadata,
+        onInit: r.module.onInit,
+        onInjection: r.module.onInjection,
+        onConfig: r.module.onConfig
+      })),
+      services: this.__services.map(s => ({
+        metadata: s.module.__metadata,
+        onInit: s.module.onInit,
+        onInjection: s.module.onInjection,
+        onConfig: s.module.onConfig
+      }))
+    };
+
+    // Emit plugin event
+    this.__pluginEvents.emitOnce(event, this.__pluginData);
+
+  }
+
+  /** Installs a Singular plugin with the provided plugin config. */
+  public install(plugin: PluginFunction, config?: any) {
+
+    this.__plugins.push({
+      function: plugin,
+      config
+    });
+
+    return this;
+
+  }
+
   /** Registers all path aliases. */
   public registerAliases(paths: PathAliases) {
 
@@ -842,6 +902,24 @@ export class Singular {
 
     // Get main file's directory path
     (<any>global).__rootdir = path.dirname(callsites()[1].getFileName());
+
+    // Initialize all plugins
+    try {
+
+      await this.__initPlugins();
+
+    }
+    catch (error) {
+
+      this.__cachedLogs.push({
+        level: 'error',
+        message: `A plugin failed to initialize: ${error}`
+      });
+
+    }
+
+    // Emit plugin event
+    this.__emitPluginEvent('plugin:config:before');
 
     // If config profile not provided or not found
     if ( ! configProfile || ! this.__configProfiles.hasOwnProperty(configProfile) ) {
@@ -882,14 +960,27 @@ export class Singular {
     // Clear cached logs
     this.__cachedLogs = [];
 
+    // Emit plugin event
+    this.__emitPluginEvent('plugin:config:after');
+
     // Scan and install all components
     this.__installComponents();
+
+    // Emit plugin event
+    this.__emitPluginEvent('plugin:middleware:internal:before');
 
     // Mount default top middleware
     this.__mountDefaultTopMiddleware();
 
+    // Emit plugin event
+    this.__emitPluginEvent('plugin:middleware:internal:after');
+    this.__emitPluginEvent('plugin:middleware:user:before');
+
     // Install routers
     this.__installRouters();
+
+    // Emit plugin event
+    this.__emitPluginEvent('plugin:middleware:user:after');
 
     // Disable default Express header
     this.__app.disable('x-powered-by');
@@ -908,6 +999,9 @@ export class Singular {
 
     }
 
+    // Emit plugin event
+    this.__emitPluginEvent('plugin:launch:before');
+
     // Start the server
     this.__app.listen(this.__config.port, (error: Error) => {
 
@@ -920,6 +1014,9 @@ export class Singular {
       else {
 
         log.notice(`Server started on port ${this.__config.port}`);
+        // Emit plugin event
+        this.__emitPluginEvent('plugin:launch:after');
+        // Emit server event
         events.emit('launch', this.__config.port);
 
       }
@@ -980,3 +1077,12 @@ interface ConfigProfiles {
   [name: string]: ServerConfig;
 
 }
+
+interface InstalledPlugin {
+
+  function: PluginFunction;
+  config: any;
+
+}
+
+type PluginFunction = (events: PluginEvents, config: any) => void|Promise<void>;
