@@ -1,14 +1,13 @@
-import { FunctionHistory } from '../models';
+import { Decoy } from './decoy';
 
-export class ConsoleDecoy {
-
-  private __history: FunctionHistory[] = [];
+export class ConsoleDecoy extends Decoy<Console> {
 
   public debug(...args: any[]) {
 
     this.__history.push({
       name: 'debug',
-      args
+      args,
+      type: 'function'
     });
 
   }
@@ -17,7 +16,8 @@ export class ConsoleDecoy {
 
     this.__history.push({
       name: 'log',
-      args
+      args,
+      type: 'function'
     });
 
   }
@@ -26,7 +26,8 @@ export class ConsoleDecoy {
 
     this.__history.push({
       name: 'warn',
-      args
+      args,
+      type: 'function'
     });
 
   }
@@ -35,13 +36,10 @@ export class ConsoleDecoy {
 
     this.__history.push({
       name: 'error',
-      args
+      args,
+      type: 'function'
     });
 
   }
-
-  public get history() { return this.__history; }
-
-  public clearHistory() { this.__history = []; }
 
 }

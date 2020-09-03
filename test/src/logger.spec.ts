@@ -12,8 +12,6 @@ import zlib from 'zlib';
 
 describe('ServerLogger', function() {
 
-  (<any>global).__rootdir = __dirname;
-
   it('should not log to file when configured correctly', async function() {
 
     const originalConsole = console;

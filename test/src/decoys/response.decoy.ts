@@ -1,15 +1,14 @@
 import { Response } from '../../../dist/core';
-import { FunctionHistory } from '../models';
+import { Decoy } from './decoy';
 
-export class ResponseDecoy {
-
-  private __history: FunctionHistory[] = [];
+export class ResponseDecoy extends Decoy<Response> {
 
   public status(...args: any[]) {
 
     this.__history.push({
       name: 'status',
-      args
+      args,
+      type: 'function'
     });
 
     return this;
@@ -20,17 +19,24 @@ export class ResponseDecoy {
 
     this.__history.push({
       name: 'json',
-      args
+      args,
+      type: 'function'
     });
 
     return this;
 
   }
 
-  public get history() { return this.__history; }
+  public cookie(...args: any[]) {
 
-  public clearHistory() { this.__history = []; }
+    this.__history.push({
+      name: 'cookie',
+      args,
+      type: 'function'
+    });
 
-  public get decoy(): Response { return <any>this; }
+    return this;
+
+  }
 
 }

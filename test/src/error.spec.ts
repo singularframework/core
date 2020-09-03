@@ -66,8 +66,8 @@ describe('ServerError', function() {
     new ServerError('Error message').respond(res.decoy);
 
     expect(res.history).to.deep.equal([
-      { name: 'status', args: [500] },
-      { name: 'json', args: [{ error: true, message: 'Error message', code: 'UNKNOWN_ERROR' }] }
+      { type: 'function', name: 'status', args: [500] },
+      { type: 'function', name: 'json', args: [{ error: true, message: 'Error message', code: 'UNKNOWN_ERROR' }] }
     ]);
 
     res.clearHistory();
@@ -78,12 +78,12 @@ describe('ServerError', function() {
     new ServerError('Error message!', 404, 'NOT_FOUND').respond(res.decoy, req.decoy);
 
     expect(res.history).to.deep.equal([
-      { name: 'status', args: [404] },
-      { name: 'json', args: [{ error: true, message: 'Error message!', code: 'NOT_FOUND' }] }
+      { type: 'function', name: 'status', args: [404] },
+      { type: 'function', name: 'json', args: [{ error: true, message: 'Error message!', code: 'NOT_FOUND' }] }
     ]);
 
     expect(log.history.length).to.equal(2);
-    expect(log.history[0]).to.deep.equal({ name: 'id', args: ['SESSION_ID'] });
+    expect(log.history[0]).to.deep.equal({ type: 'function', name: 'id', args: ['SESSION_ID'] });
     expect(log.history[1].name).to.equal('debug');
     expect(log.history[1].args.length).to.equal(1);
     expect(log.history[1].args[0]).to.match(/status 404.+code "NOT_FOUND"/);

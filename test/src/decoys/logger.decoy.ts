@@ -1,15 +1,14 @@
 import { ServerLogger } from '../../../dist/logger';
-import { FunctionHistory } from '../models';
+import { Decoy } from './decoy';
 
-export class LoggerDecoy {
-
-  private __history: FunctionHistory[] = [];
+export class LoggerDecoy extends Decoy<ServerLogger> {
 
   public debug(...args: any[]) {
 
     this.__history.push({
       name: 'debug',
-      args
+      args,
+      type: 'function'
     });
 
   }
@@ -18,7 +17,8 @@ export class LoggerDecoy {
 
     this.__history.push({
       name: 'info',
-      args
+      args,
+      type: 'function'
     });
 
   }
@@ -27,7 +27,8 @@ export class LoggerDecoy {
 
     this.__history.push({
       name: 'notice',
-      args
+      args,
+      type: 'function'
     });
 
   }
@@ -36,7 +37,8 @@ export class LoggerDecoy {
 
     this.__history.push({
       name: 'warn',
-      args
+      args,
+      type: 'function'
     });
 
   }
@@ -45,7 +47,8 @@ export class LoggerDecoy {
 
     this.__history.push({
       name: 'error',
-      args
+      args,
+      type: 'function'
     });
 
   }
@@ -54,17 +57,12 @@ export class LoggerDecoy {
 
     this.__history.push({
       name: 'id',
-      args
+      args,
+      type: 'function'
     });
 
     return this;
 
   }
-
-  public get history() { return this.__history; }
-
-  public clearHistory() { this.__history = []; }
-
-  public get decoy(): ServerLogger { return <any>this; }
 
 }
