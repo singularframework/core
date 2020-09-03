@@ -212,7 +212,7 @@ export class Singular {
     // Install session manager middleware
     if ( this.__config.sessionManagement ) {
 
-      this.__app.use((<ServerSessionManagerInternal>session).middleware);
+      this.__app.use((<ServerSessionManagerInternal>session).middleware.bind(session));
 
       log.debug('Session manager middleware has been installed');
 

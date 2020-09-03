@@ -14,8 +14,8 @@ export class ServerSessionManager {
   * @param handler An event handler.
   */
   public on(event: 'created', handler: SessionHandlers['created']): this;
-  public on(event: 'claim:get', handler: SessionHandlers['claimGet']): this;
-  public on(event: 'claim:set', handler: SessionHandlers['claimSet']): this;
+  public on(event: 'claim:get', handler: SessionHandlers['claim:get']): this;
+  public on(event: 'claim:set', handler: SessionHandlers['claim:set']): this;
   public on(event: string, handler: (...args: any[]) => any|Promise<any>): this {
 
     if ( ! this.__enabled ) {
@@ -60,14 +60,14 @@ export class ServerSessionManager {
 
     }
 
-    if ( ! this.__handlers.claimSet ) {
+    if ( ! this.__handlers['claim:set'] ) {
 
       log.warn(`Session event 'claim:set' has no handler assigned!`);
       return;
 
     }
 
-    return this.__handlers.claimSet(id, key, value);
+    return this.__handlers['claim:set'](id, key, value);
 
   }
 
@@ -85,14 +85,14 @@ export class ServerSessionManager {
 
     }
 
-    if ( ! this.__handlers.claimSet ) {
+    if ( ! this.__handlers['claim:get'] ) {
 
       log.warn(`Session event 'claim:get' has no handler assigned!`);
       return;
 
     }
 
-    return this.__handlers.claimGet(id, key);
+    return this.__handlers['claim:get'](id, key);
 
   }
 
@@ -161,7 +161,7 @@ export class ServerSessionManagerInternal extends ServerSessionManager {
 interface SessionHandlers {
 
   created?: (id: string) => void|Promise<void>;
-  claimGet?: (id: string, key: string) => any|Promise<any>;
-  claimSet?: (id: string, key: string, value: any) => void|Promise<void>;
+  ['claim:get']?: (id: string, key: string) => any|Promise<any>;
+  ['claim:set']?: (id: string, key: string, value: any) => void|Promise<void>;
 
 }
