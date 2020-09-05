@@ -7,3 +7,4 @@ import './error.spec';
 import './events.spec';
 import './logger.spec';
 import './session.spec';
+import './singular.spec';

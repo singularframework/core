@@ -317,7 +317,6 @@ export class Singular {
     target: any,
     targetName: 'header'|'query'|'body',
     transformer: PipeFunction|AsyncPipeFunction|TransformationDefinition|BodyTransformationDefinition|ExecutablePipes,
-    req: Request,
     recurseMax: number = Infinity,
     recurseCount: number = 0,
     rawValues?: any
@@ -347,7 +346,7 @@ export class Singular {
 
       for ( const key in transformer ) {
 
-        target[key] = await this.__transformObject(target[key], targetName, transformer[key], req, recurseMax, ++recurseCount, target);
+        target[key] = await this.__transformObject(target[key], targetName, transformer[key], recurseMax, recurseCount + 1, target);
 
       }
 
@@ -371,7 +370,7 @@ export class Singular {
       }
 
       // Can recurse once
-      req.headers = await this.__transformObject(req.headers, 'header', rule.transformer, req, 1);
+      req.headers = await this.__transformObject(req.headers, 'header', rule.transformer, 1);
 
     }
     else if ( rule.target === AggregationTarget.Queries ) {
@@ -385,7 +384,7 @@ export class Singular {
       }
 
       // Can recurse once
-      req.query = await this.__transformObject(req.query, 'query', rule.transformer, req, 1);
+      req.query = await this.__transformObject(req.query, 'query', rule.transformer, 1);
 
     }
     else if ( rule.target === AggregationTarget.Body ) {
@@ -399,7 +398,7 @@ export class Singular {
       }
 
       // Can recurse inifinite times
-      req.body = await this.__transformObject(req.body, 'body', rule.transformer, req);
+      req.body = await this.__transformObject(req.body, 'body', rule.transformer);
 
     }
     else if ( rule.target === AggregationTarget.Custom ) {
@@ -427,6 +426,7 @@ export class Singular {
 
   }
 
+  /** Validates the target using the given validator. */
   private async __validateObject(
     target: any,
     targetName: 'header'|'query'|'body',
@@ -473,7 +473,7 @@ export class Singular {
 
       for ( const key in validator ) {
 
-        const result = await this.__validateObject(target[key], targetName, validator[key], req, recurseMax, ++recurseCount, target, valuePath.concat([key]));
+        const result = await this.__validateObject(target[key], targetName, validator[key], req, recurseMax, recurseCount + 1, target, valuePath.concat([key]));
 
         if ( result instanceof Error ) return result;
 
