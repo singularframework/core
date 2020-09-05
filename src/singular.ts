@@ -12,7 +12,7 @@ import { ServerLogger, ServerLoggerCore } from './logger';
 import { ServerEventManager } from './events';
 import { ServerSessionManagerInternal } from './session';
 import { ServerError } from './error';
-import { RequestHandler } from 'express';
+import { RequestHandler, Request as OriginalRequest } from 'express';
 import callsites from 'callsites';
 import {
   Request,
@@ -220,8 +220,10 @@ export class Singular {
 
   }
 
-  /** Renders a request path for logging considering server config and allowed headers and queries in logs. */
-  private __getLogPath(req: any) {
+  /** Renders a request path (and headers if withHeaders is true) for logging considering server config and allowed headers and queries in logs. */
+  private __getLogPath(req: OriginalRequest): string;
+  private __getLogPath(req: OriginalRequest, withHeaders: true): { path: string; headers: string };
+  private __getLogPath(req: OriginalRequest, withHeaders?: boolean): any {
 
     // Parse URL
     const url = new URL(`${req.protocol}://${req.get('host')}${req.originalUrl}`);
@@ -241,7 +243,7 @@ export class Singular {
     result.path = url.toString();
 
     // Log headers
-    if ( this.__config.logRequestHeaders ) {
+    if ( withHeaders && this.__config.logRequestHeaders ) {
 
       // Hide headers based on config
       const headers = _.clone(req.headers);
@@ -265,7 +267,7 @@ export class Singular {
 
     }
 
-    return result;
+    return withHeaders ? result : result.path;
 
   }
 
@@ -285,7 +287,7 @@ export class Singular {
       });
 
       if ( matches ) next();
-      else new ServerError(`Route ${this.__getLogPath(req).path} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res);
+      else new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res);
 
     });
 
@@ -426,7 +428,7 @@ export class Singular {
       }
       else {
 
-        log.warn(`Custom transformer for route "${this.__getLogPath(req).path}" is not a function!`);
+        log.warn(`Custom transformer for route "${this.__getLogPath(req)}" is not a function!`);
         throw new Error('Invalid custom transformer!');
 
       }
@@ -434,7 +436,7 @@ export class Singular {
     }
     else {
 
-      log.warn(`Invalid aggregation target "${rule.target}" for route "${this.__getLogPath(req).path}"!`);
+      log.warn(`Invalid transformation target "${rule.target}" for route "${this.__getLogPath(req)}"!`);
       throw new Error('An internal error has occurred!');
 
     }
@@ -523,12 +525,15 @@ export class Singular {
       // Send the whole request object to validator
       if ( typeof rule.validator === 'function' ) {
 
-        await rule.validator(req);
+        const result = await rule.validator(req);
+
+        if ( ! result ) return new Error(`Validation failed!`);
+        else if ( result instanceof Error ) return result;
 
       }
       else {
 
-        log.warn(`Custom transformer for route "${this.__getLogPath(req).path}" is not a function!`);
+        log.warn(`Custom transformer for route "${this.__getLogPath(req)}" is not a function!`);
         throw new Error('Invalid custom transformer!');
 
       }
@@ -536,7 +541,7 @@ export class Singular {
     }
     else {
 
-      log.warn(`Invalid aggregation target "${rule.target}" for route "${this.__getLogPath(req).path}"!`);
+      log.warn(`Invalid validation target "${rule.target}" for route "${this.__getLogPath(req)}"!`);
       throw new Error('An internal error has occurred!');
 
     }
@@ -557,7 +562,7 @@ export class Singular {
     const textBody = typeof req.body === 'string';
     let origins: OriginValues = null;
 
-    // If aggregation rules does include transformation, copy req values as origins
+    // If aggregation rules do include transformation, copy req values as origins
     if ( this.__doesTransform(route) ) {
 
       origins = {
@@ -574,7 +579,7 @@ export class Singular {
       if ( this.__isValidationRule(rule) ) {
 
         // Skip if body is not JSON or text
-        if ( rule.target === AggregationTarget.Body && (! jsonBody || ! textBody) ) continue;
+        if ( rule.target === AggregationTarget.Body && ! jsonBody && ! textBody ) continue;
 
         const result = await this.__aggregateValidation(req, rule);
 
@@ -585,7 +590,7 @@ export class Singular {
       else if ( this.__isTransformationRule(rule) ) {
 
         // Skip if body is not transformable
-        if ( rule.target === AggregationTarget.Body && (! jsonBody || ! textBody) ) continue;
+        if ( rule.target === AggregationTarget.Body && ! jsonBody && ! textBody ) continue;
 
         await this.__aggregateTransformation(origins, req, rule);
 
@@ -593,7 +598,7 @@ export class Singular {
       // Invalid rule
       else {
 
-        log.warn(`Invalid aggregation rule for route "${this.__getLogPath(req).path}"!`);
+        log.warn(`Invalid aggregation rule for route "${this.__getLogPath(req)}"!`);
         throw new Error('An internal error has occurred!');
 
       }
@@ -671,7 +676,7 @@ export class Singular {
         // Create route logger
         handlers.push((req, res, next) => {
 
-          const url = this.__getLogPath(req);
+          const url = this.__getLogPath(req, true);
 
           if ( this.__config.logRequestHeaders ) log.debug(url.headers);
 
@@ -733,7 +738,7 @@ export class Singular {
 
       this.__app.use('*', (req, res) => {
 
-        new ServerError(`Route ${this.__getLogPath(req).path} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res);
+        new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res);
 
       });
 

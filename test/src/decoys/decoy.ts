@@ -29,7 +29,7 @@ class ObjectProxy<T extends Object> implements ProxyHandler<T> {
 
     this.__history.push({
       type: 'property-get',
-      name: `${this.__namespace}.${prop}`
+      name: `${this.__namespace}.${prop.toString()}`
     });
 
     return target[prop];
@@ -40,7 +40,7 @@ class ObjectProxy<T extends Object> implements ProxyHandler<T> {
 
     this.__history.push({
       type: 'property-set',
-      name: `${this.__namespace}.${prop}`,
+      name: `${this.__namespace}.${prop.toString()}`,
       value
     });
 

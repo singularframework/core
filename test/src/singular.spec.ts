@@ -1,4 +1,11 @@
-import { Singular, BodyTransformationDefinition, BodyValidationDefinition } from '../../dist/core';
+import {
+  Singular,
+  BodyTransformationDefinition,
+  BodyValidationDefinition,
+  RouteDefinition,
+  AggregationTarget
+} from '../../dist/core';
+import { LoggerDecoy, RequestDecoy } from './decoys';
 import { expect } from 'chai';
 
 describe('Singular', function() {
@@ -209,6 +216,236 @@ describe('Singular', function() {
 
     expect(result instanceof Error).to.be.true;
     expect(result.message).to.equal('Invalid value in headers!');
+
+  });
+
+  it('should execute aggregation rules correctly', async function() {
+
+    const route: RouteDefinition = {
+      path: '/test',
+      middleware: [''],
+      aggregate: [
+        {
+          target: AggregationTarget.Headers,
+          transformer: {
+            'content-type': value => value.toLowerCase()
+          }
+        },
+        {
+          target: AggregationTarget.Queries,
+          transformer: {
+            page: value => +value
+          }
+        },
+        {
+          target: AggregationTarget.Custom,
+          transformer: req => req.body.customRan = true
+        },
+        {
+          target: AggregationTarget.Body,
+          transformer: {
+            fullName: (value, rawValues) => `${rawValues.firstName} ${rawValues.lastName}`
+          }
+        }
+      ]
+    };
+
+    const req = new RequestDecoy();
+
+    req.headers = {
+      'content-type': 'APPLICATION/Json',
+      'host': 'localhost:5000'
+    };
+    req.query = {
+      page: '3'
+    };
+    req.body = {
+      firstName: 'Randy',
+      lastName: 'Blythe'
+    };
+    req.protocol = 'http';
+    req.originalUrl = '/test';
+
+    (<any>Singular).__config = {};
+
+    // Test transformations
+    let result = await (<any>Singular).__executeAggregation(route, req);
+
+    expect(result.reject).to.be.false;
+    expect(req.headers['content-type']).to.equal('application/json');
+    expect(req.query.page).to.equal(3);
+    expect(req.body).to.deep.equal({
+      firstName: 'Randy',
+      lastName: 'Blythe',
+      fullName: 'Randy Blythe',
+      customRan: true
+    });
+
+    route.aggregate.push({
+      target: AggregationTarget.Body,
+      transformer: 'origin'
+    });
+
+    // Test origin transformation
+    result = await (<any>Singular).__executeAggregation(route, req);
+
+    expect(result.reject).to.be.false;
+    expect(req.body).to.deep.equal(req.body);
+
+    // Test validators
+    route.aggregate.push({
+      target: AggregationTarget.Headers,
+      validator: {
+        'content-type': value => value === 'application/json'
+      }
+    }, {
+      target: AggregationTarget.Queries,
+      validator: {
+        limit: async (value, rawValues) => {
+
+          return (value === undefined && rawValues.page !== undefined) || (value !== undefined && rawValues.page === undefined);
+
+        }
+      }
+    }, {
+      target: AggregationTarget.Body,
+      validator: { __exec: () => async value => !! value.customRan || new Error('Custom transformer not ran!') }
+    }, {
+      target: AggregationTarget.Custom,
+      validator: req => ! req.body.fail
+    });
+
+    req.query.limit = 100;
+
+    result = await (<any>Singular).__executeAggregation(route, req);
+
+    expect(result.reject).to.be.true;
+    expect(result.reason.message).to.equal('Invalid value for query "limit"!');
+    expect(result.code).to.equal('VALIDATION_FAILED');
+
+    req.query.limit = undefined;
+    req.body.customRan = false;
+
+    result = await (<any>Singular).__executeAggregation(route, req);
+
+    expect(result.reject).to.be.true;
+    expect(result.reason.message).to.equal('Custom transformer not ran!');
+    expect(result.code).to.equal('VALIDATION_FAILED');
+
+    req.body.customRan = true;
+
+    result = await (<any>Singular).__executeAggregation(route, req);
+
+    expect(result.reject).to.be.false;
+
+    req.body.fail = true;
+
+    result = await (<any>Singular).__executeAggregation(route, req);
+
+    expect(result.reject).to.be.true;
+    expect(result.reason.message).to.equal('Validation failed!');
+    expect(result.code).to.equal('VALIDATION_FAILED');
+
+    req.body.fail = false;
+
+    // Test invalid validation rule
+    (<any>route.aggregate).push({
+      target: 'blah',
+      validator: value => !! value
+    });
+
+    const loggerDecoy = new LoggerDecoy();
+    (<any>global).log = loggerDecoy;
+
+    let errorThrown = false;
+
+    try {
+
+      result = await (<any>Singular).__executeAggregation(route, req);
+
+    }
+    catch(error) {
+
+      errorThrown = true;
+      expect(error.message).to.equal('An internal error has occurred!');
+      expect(loggerDecoy.history).to.deep.equal([
+        {
+          type: 'function',
+          name: 'warn',
+          args: ['Invalid validation target "blah" for route "http://localhost:5000/test"!']
+        }
+      ]);
+
+    }
+
+    expect(errorThrown).to.be.true;
+
+    route.aggregate.pop();
+    loggerDecoy.clearHistory();
+
+    // Test invalid transformation rule
+    (<any>route.aggregate).push({
+      target: 'blah',
+      transformer: value => !! value
+    });
+
+    errorThrown = false;
+
+    try {
+
+      result = await (<any>Singular).__executeAggregation(route, req);
+
+    }
+    catch(error) {
+
+      errorThrown = true;
+      expect(error.message).to.equal('An internal error has occurred!');
+      expect(loggerDecoy.history).to.deep.equal([
+        {
+          type: 'function',
+          name: 'warn',
+          args: ['Invalid transformation target "blah" for route "http://localhost:5000/test"!']
+        }
+      ]);
+
+    }
+
+    expect(errorThrown).to.be.true;
+
+    route.aggregate.pop();
+    loggerDecoy.clearHistory();
+
+    // Test invalid aggregation rule
+    (<any>route.aggregate).push({
+      target: AggregationTarget.Body,
+      blah: value => !! value
+    });
+
+    errorThrown = false;
+
+    try {
+
+      result = await (<any>Singular).__executeAggregation(route, req);
+
+    }
+    catch(error) {
+
+      errorThrown = true;
+      expect(error.message).to.equal('An internal error has occurred!');
+      expect(loggerDecoy.history).to.deep.equal([
+        {
+          type: 'function',
+          name: 'warn',
+          args: ['Invalid aggregation rule for route "http://localhost:5000/test"!']
+        }
+      ]);
+
+    }
+
+    expect(errorThrown).to.be.true;
+
+    route.aggregate.pop();
+    loggerDecoy.clearHistory();
 
   });
 
