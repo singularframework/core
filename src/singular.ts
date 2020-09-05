@@ -312,10 +312,25 @@ export class Singular {
 
   }
 
+  /** Generates a generic message for a validation error. */
+  private __generateValidationErrorMessage(targetName: 'header'|'query'|'body', valuePath: string[]): string {
+
+    if ( valuePath.length ) {
+
+      return `Invalid value for ${targetName === 'body' ? targetName + ' property' : targetName} "${valuePath.join('.')}"!`;
+
+    }
+    else {
+
+      return `Invalid value in ${targetName === 'header' ? 'headers' : targetName === 'query' ? 'queries' : targetName}!`;
+
+    }
+
+  }
+
   /** Transforms the target using the given transformer. */
   private async __transformObject(
     target: any,
-    targetName: 'header'|'query'|'body',
     transformer: PipeFunction|AsyncPipeFunction|TransformationDefinition|BodyTransformationDefinition|ExecutablePipes,
     recurseMax: number = Infinity,
     recurseCount: number = 0,
@@ -346,7 +361,7 @@ export class Singular {
 
       for ( const key in transformer ) {
 
-        target[key] = await this.__transformObject(target[key], targetName, transformer[key], recurseMax, recurseCount + 1, target);
+        target[key] = await this.__transformObject(target[key], transformer[key], recurseMax, recurseCount + 1, target);
 
       }
 
@@ -370,7 +385,7 @@ export class Singular {
       }
 
       // Can recurse once
-      req.headers = await this.__transformObject(req.headers, 'header', rule.transformer, 1);
+      req.headers = await this.__transformObject(req.headers, rule.transformer, 1);
 
     }
     else if ( rule.target === AggregationTarget.Queries ) {
@@ -384,7 +399,7 @@ export class Singular {
       }
 
       // Can recurse once
-      req.query = await this.__transformObject(req.query, 'query', rule.transformer, 1);
+      req.query = await this.__transformObject(req.query, rule.transformer, 1);
 
     }
     else if ( rule.target === AggregationTarget.Body ) {
@@ -398,7 +413,7 @@ export class Singular {
       }
 
       // Can recurse inifinite times
-      req.body = await this.__transformObject(req.body, 'body', rule.transformer);
+      req.body = await this.__transformObject(req.body, rule.transformer);
 
     }
     else if ( rule.target === AggregationTarget.Custom ) {
@@ -431,7 +446,6 @@ export class Singular {
     target: any,
     targetName: 'header'|'query'|'body',
     validator: ValidatorFunction|AsyncValidatorFunction|ValidationDefinition|BodyValidationDefinition|ExecutableValidators,
-    req: Request,
     recurseMax: number = Infinity,
     recurseCount: number = 0,
     rawValues?: any,
@@ -448,7 +462,7 @@ export class Singular {
 
       if ( ! result ) {
 
-        return new Error(`Invalid value for ${targetName === 'body' ? targetName + ' property' : targetName} "${valuePath.join('.')}"!`);
+        return new Error(this.__generateValidationErrorMessage(targetName, valuePath));
 
       }
       else if ( result instanceof Error ) {
@@ -467,13 +481,13 @@ export class Singular {
       // Expecting target to be an object
       if ( ! target || typeof target !== 'object' || target.constructor !== Object ) {
 
-        return new Error(`Invalid value for ${targetName === 'body' ? targetName + ' property' : targetName} "${valuePath.join('.')}"! Value must be an object.`);
+        return new Error(`${this.__generateValidationErrorMessage(targetName, valuePath)} Value must be an object.`);
 
       }
 
       for ( const key in validator ) {
 
-        const result = await this.__validateObject(target[key], targetName, validator[key], req, recurseMax, recurseCount + 1, target, valuePath.concat([key]));
+        const result = await this.__validateObject(target[key], targetName, validator[key], recurseMax, recurseCount + 1, target, valuePath.concat([key]));
 
         if ( result instanceof Error ) return result;
 
@@ -489,19 +503,19 @@ export class Singular {
     if ( rule.target === AggregationTarget.Headers ) {
 
       // Can recurse once
-      return await this.__validateObject(req.headers, 'header', rule.validator, req, 1);
+      return await this.__validateObject(req.headers, 'header', rule.validator, 1);
 
     }
     else if ( rule.target === AggregationTarget.Queries ) {
 
       // Can recurse once
-      return await this.__validateObject(req.query, 'query', rule.validator, req, 1);
+      return await this.__validateObject(req.query, 'query', rule.validator, 1);
 
     }
     else if ( rule.target === AggregationTarget.Body ) {
 
       // Can recurse infinite times
-      return await this.__validateObject(req.body, 'body', rule.validator, req);
+      return await this.__validateObject(req.body, 'body', rule.validator);
 
     }
     else if ( rule.target === AggregationTarget.Custom ) {

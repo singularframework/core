@@ -1,9 +1,9 @@
-import { Singular, BodyTransformationDefinition } from '../../dist/core';
+import { Singular, BodyTransformationDefinition, BodyValidationDefinition } from '../../dist/core';
 import { expect } from 'chai';
 
 describe('Singular', function() {
 
-  it('should transform object correctly', async function() {
+  it('should transform objects correctly', async function() {
 
     // Flat target
     let def: BodyTransformationDefinition = {
@@ -15,7 +15,7 @@ describe('Singular', function() {
       lastName: ' Blame '
     };
 
-    target = await (<any>Singular).__transformObject(target, 'header', def, 1);
+    target = await (<any>Singular).__transformObject(target, def, 1);
 
     expect(target).to.deep.equal({
       firstName: 'david',
@@ -44,7 +44,7 @@ describe('Singular', function() {
       }
     };
 
-    target = await (<any>Singular).__transformObject(target, 'header', def);
+    target = await (<any>Singular).__transformObject(target, def);
 
     expect(target).to.deep.equal({
       firstName: 'david',
@@ -79,7 +79,7 @@ describe('Singular', function() {
       }
     };
 
-    target = await (<any>Singular).__transformObject(target, 'header', def, 2);
+    target = await (<any>Singular).__transformObject(target, def, 2);
 
     expect(target).to.deep.equal({
       magician: true,
@@ -88,6 +88,127 @@ describe('Singular', function() {
         object: undefined
       }
     });
+
+    // Direct transformer function
+    target = {
+      firstName: 'David',
+      lastName: ' Blame '
+    };
+
+    target = await (<any>Singular).__transformObject(target, value => ({
+      firstName: value.firstName.toLowerCase().trim(),
+      lastName: value.lastName.toLowerCase().trim()
+    }) ,1);
+
+    expect(target).to.deep.equal({
+      firstName: 'david',
+      lastName: 'blame'
+    });
+
+    // Direct executable pipes
+    target = {
+      firstName: 'David',
+      lastName: ' Blame '
+    };
+
+    target = await (<any>Singular).__transformObject(target, { __exec: () => async value => ({
+      firstName: value.firstName.toLowerCase().trim(),
+      lastName: value.lastName.toLowerCase().trim()
+    }) } ,1);
+
+    expect(target).to.deep.equal({
+      firstName: 'david',
+      lastName: 'blame'
+    });
+
+  });
+
+  it('should validate objects correctly', async function() {
+
+    // Flat object
+    let target: any = {
+      firstName: 'david',
+      lastName: 'blame'
+    };
+    let def: BodyValidationDefinition = {
+      firstName: async value => typeof value === 'string',
+      lastName: { __exec: () => async (value, rawValues) => rawValues.firstName === 'david' }
+    };
+
+    let result = await (<any>Singular).__validateObject(target, 'body', def, 1);
+
+    expect(result).to.be.undefined;
+
+    target.firstName = true;
+
+    result = await (<any>Singular).__validateObject(target, 'body', def, 1);
+
+    expect(result instanceof Error).to.be.true;
+    expect(result.message).to.equal('Invalid value for body property "firstName"!');
+
+    // Nested object
+    target = {
+      magician: true,
+      is: {
+        absolutely: {
+          crazy: true
+        }
+      }
+    };
+    def = {
+      magician: value => typeof value === 'boolean',
+      is: {
+        absolutely: {
+          crazy: value => typeof value === 'boolean'
+        }
+      }
+    };
+
+    result = await (<any>Singular).__validateObject(target, 'body', def);
+
+    expect(result).to.be.undefined;
+
+    // Object def on non-object value
+    def = {
+      magician: {
+        successful: async value => typeof value === 'boolean'
+      }
+    };
+
+    result = await (<any>Singular).__validateObject(target, 'body', def);
+
+    expect(result instanceof Error).to.be.true;
+    expect(result.message).to.equal('Invalid value for body property "magician"! Value must be an object.');
+
+    // Recursion limitation
+    target = {
+      topLevel: true,
+      nested: {
+        value: false
+      }
+    };
+    def = {
+      topLevel: value => typeof value === 'boolean',
+      nested: {
+        value: value => value !== false
+      }
+    };
+
+    result = await (<any>Singular).__validateObject(target, 'body', def, 1);
+
+    expect(result).to.be.undefined;
+
+    // Direct validator function and custom error message
+    result = await (<any>Singular).__validateObject(target, 'body', value => value.topLevel ? new Error('Custom message!') : true, 1);
+
+    expect(result instanceof Error).to.be.true;
+    expect(result.message).to.equal('Custom message!');
+
+    // Direct executable validators
+    result = await (<any>Singular).__validateObject(target, 'header', { __exec: () => async value => !! value.nested.value });
+
+    expect(result instanceof Error).to.be.true;
+    expect(result.message).to.equal('Invalid value in headers!');
 
   });
 
