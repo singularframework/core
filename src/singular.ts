@@ -14,6 +14,8 @@ import { ServerSessionManagerInternal } from './session';
 import { ServerError } from './error';
 import { RequestHandler, Request as OriginalRequest } from 'express';
 import callsites from 'callsites';
+import http from 'http';
+import https from 'https';
 import {
   Request,
   Response,
@@ -42,7 +44,10 @@ export class Singular {
 
   /** Server config defaults. */
   private static __CONFIG_DEFAULT: ServerConfig = {
-    port: 5000,
+    https: false,
+    httpsPort: 443,
+    httpsOnly: true,
+    port: 80,
     predictive404: false,
     predictive404Priority: Infinity,
     timezone: DateTime.local().zone.name,
@@ -659,17 +664,6 @@ export class Singular {
 
         }
 
-        for ( const handler of route.middleware ) {
-
-          if ( ! Object.getOwnPropertyNames(Object.getPrototypeOf(router)).includes(handler) || typeof router[handler] !== 'function' ) {
-
-            log.error(`Route handler "${handler}" not found in router "${router.name}"!`);
-            continue;
-
-          }
-
-        }
-
         // Create route handlers
         const handlers: RequestHandler[] = [];
 
@@ -709,7 +703,15 @@ export class Singular {
         // Mount route middleware provided by user
         for ( const handler of route.middleware ) {
 
-          handlers.push(router[handler].bind(router));
+          // Validate middleware
+          if ( ! Object.getOwnPropertyNames(Object.getPrototypeOf(router.module)).includes(handler) || typeof router.module[handler] !== 'function' ) {
+
+            log.error(`Route handler "${handler}" not found in router "${router.name}"!`);
+            continue;
+
+          }
+
+          handlers.push(router.module[handler].bind(router.module));
 
         }
 
@@ -1021,24 +1023,49 @@ export class Singular {
     // Emit plugin event
     this.__emitPluginEvent('plugin:launch:before');
 
-    // Start the server
-    this.__app.listen(this.__config.port, (error: Error) => {
+    // Start the server on HTTPS
+    if ( this.__config.https ) {
 
-      if ( error ) {
+      https.createServer({
+        key: await fs.readFile(path.isAbsolute(this.__config.httpsKey) ? this.__config.httpsKey : path.resolve(__rootdir, this.__config.httpsKey)),
+        cert: await fs.readFile(path.isAbsolute(this.__config.httpsCert) ? this.__config.httpsCert : path.resolve(__rootdir, this.__config.httpsCert))
+      }, this.__app)
+      .listen(this.__config.httpsPort, () => {
 
-        log.error('Could not start the server due to an error:', error);
-        events.emit('error', error);
-
-      }
-      else {
-
-        log.notice(`Server started on port ${this.__config.port}`);
+        log.notice(`HTTPS server started on port ${this.__config.httpsPort}`);
         // Emit plugin event
         this.__emitPluginEvent('plugin:launch:after');
         // Emit server event
-        events.emit('launch', this.__config.port);
+        events.emit('launch', this.__config.httpsPort, 'https');
 
-      }
+      })
+      .on('error', (error: Error) => {
+
+        log.error('Could not start the HTTPS server due to an error:', error);
+        events.emit('error', error);
+
+      });
+
+      // Avoid starting HTTP server
+      if ( this.__config.httpsOnly ) return;
+
+    }
+
+    // Start the server on HTTP
+    http.createServer(this.__app)
+    .listen(this.__config.port, () => {
+
+      log.notice(`Server started on port ${this.__config.port}`);
+      // Emit plugin event
+      this.__emitPluginEvent('plugin:launch:after');
+      // Emit server event
+      events.emit('launch', this.__config.port, 'http');
+
+    })
+    .on('error', (error: Error) => {
+
+      log.error('Could not start the server due to an error:', error);
+      events.emit('error', error);
 
     });
 
