@@ -18,6 +18,9 @@
     ],
     "lib": [
       "es2018"
-    ]
+    ],
+    "paths": {
+      "@app/config": ["./src/components/config"]
+    }
   }
 }

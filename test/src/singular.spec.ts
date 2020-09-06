@@ -483,7 +483,7 @@ describe('Singular', function() {
 
   });
 
-  it('should scan root directory for components and initialize them correctly', async function() {
+  it('should scan root directory for components and initialize them correctly while resolving aliases', async function() {
 
     // Set test timeout
     this.timeout(10000);
@@ -595,6 +595,11 @@ describe('Singular', function() {
       injectedConfig: true
     };
 
+    // Set aliases (omit '/src' from paths)
+    Singular.registerAliases({
+      "@app/config": ["./components/config"]
+    });
+
     // Scan and install components
     (<any>Singular).__installComponents();
 
@@ -654,6 +659,44 @@ describe('Singular', function() {
       [mappedServices],
       [{ ...mappedServices, virtual: true }]
     ]);
+
+  });
+
+  it('should register config profiles and sanitize them correctly', function() {
+
+    const devConfig = {
+      port: 5000,
+      https: false,
+      excludeHeadersInLogs: ['Host'],
+      excludeQueryParamsInLogs: ['TOKEN']
+    };
+
+    const prodConfig = {
+      port: 443,
+      https: true,
+      httpsOnly: true
+    };
+
+    // Register config profiles
+    Singular
+    .config('dev', devConfig)
+    .config('prod', prodConfig);
+
+    // Test registered profiles
+    expect((<any>Singular).__configProfiles).to.deep.equal({
+      dev: Object.assign({}, (<any>Singular.constructor).__CONFIG_DEFAULT, devConfig),
+      prod: Object.assign({}, (<any>Singular.constructor).__CONFIG_DEFAULT, prodConfig)
+    });
+
+    // Test sanitization
+    (<any>Singular).__sanitizeConfig(devConfig);
+
+    expect(devConfig).to.deep.equal({
+      port: 5000,
+      https: false,
+      excludeHeadersInLogs: ['host', 'authorization'],
+      excludeQueryParamsInLogs: ['TOKEN']
+    });
 
   });
 

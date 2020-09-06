@@ -104,7 +104,6 @@ export class Singular {
 
     config.excludeHeadersInLogs = config.excludeHeadersInLogs.map(h => h.toLowerCase());
     config.excludeHeadersInLogs.push('authorization'); // Hide authorization header by default
-    config.excludeQueryParamsInLogs = config.excludeQueryParamsInLogs.map(q => q.toLowerCase());
 
   }
 
@@ -244,7 +243,7 @@ export class Singular {
     // Hide params based on config
     for ( const param of url.searchParams.keys() ) {
 
-      if ( this.__config.excludeQueryParamsInLogs.includes(param.toLowerCase()) )
+      if ( this.__config.excludeQueryParamsInLogs.includes(param) )
         url.searchParams.set(param, '__HIDDEN__');
 
     }
