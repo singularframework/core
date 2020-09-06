@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import fs from 'fs-extra';
 import path from 'path';
+import chalk from 'chalk';
 import { URL } from 'url';
 import express from 'express';
 import cors from 'cors';
@@ -225,7 +226,10 @@ export class Singular {
 
   }
 
-  /** Renders a request path (and headers if withHeaders is true) for logging considering server config and allowed headers and queries in logs. */
+  /** Renders a request path (and headers if withHeaders is true) for logging considering server config and allowed headers and queries in logs.
+  *
+  * ANSI CHARACTERS MAY BE PRESENT INSIDE THE RENDERED STRINGS, THEREFORE THEY SHOULD BE ONLY USED FOR LOGGING.
+  */
   private __getLogPath(req: OriginalRequest): string;
   private __getLogPath(req: OriginalRequest, withHeaders: true): { path: string; headers: string };
   private __getLogPath(req: OriginalRequest, withHeaders?: boolean): any {
@@ -241,34 +245,25 @@ export class Singular {
     for ( const param of url.searchParams.keys() ) {
 
       if ( this.__config.excludeQueryParamsInLogs.includes(param.toLowerCase()) )
-        url.searchParams.set(param, 'HIDDEN');
+        url.searchParams.set(param, '__HIDDEN__');
 
     }
 
-    result.path = url.toString();
+    result.path = url.toString().replace(/__HIDDEN__/g, chalk.magenta('HIDDEN'));
 
     // Log headers
     if ( withHeaders && this.__config.logRequestHeaders ) {
 
       // Hide headers based on config
-      const headers = _.clone(req.headers);
+      const headersLog: string[] = [chalk.bold('HEADERS')];
 
-      for ( const header of this.__config.excludeHeadersInLogs ) {
+      for ( const header in req.headers ) {
 
-        if ( headers.hasOwnProperty(header) ) headers[header] = 'HIDDEN';
-
-      }
-
-      // Log headers
-      let headersLog = 'HEADERS';
-
-      for ( const header in headers ) {
-
-        headersLog += `\n${header} ${headers[header]}`;
+        headersLog.push(`${header}: ${this.__config.excludeHeadersInLogs.includes(header) ? chalk.magenta('HIDDEN') : req.headers[header]}`);
 
       }
 
-      result.headers = headersLog;
+      result.headers = headersLog.join('\n');
 
     }
 
@@ -670,11 +665,21 @@ export class Singular {
         // Create route logger
         handlers.push((req, res, next) => {
 
-          const url = this.__getLogPath(req, true);
+          // Log headers and path
+          if ( this.__config.logRequestHeaders ) {
 
-          if ( this.__config.logRequestHeaders ) log.debug(url.headers);
+            const url = this.__getLogPath(req, true);
 
-          log.debug(req.method.toUpperCase(), url.path);
+            log.debug(url.headers);
+            log.debug(req.method.toUpperCase(), url.path);
+
+          }
+          // Log path
+          else {
+
+            log.debug(req.method.toUpperCase(), this.__getLogPath(req));
+
+          }
 
           next();
 

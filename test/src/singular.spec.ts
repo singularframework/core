@@ -7,8 +7,40 @@ import {
 } from '../../dist/core';
 import { LoggerDecoy, RequestDecoy } from './decoys';
 import { expect } from 'chai';
+import stripAnsi from 'strip-ansi';
 
 describe('Singular', function() {
+
+  it.only('should render request path and headers for logs correctly', function () {
+
+    (<any>Singular).__config = {
+      excludeQueryParamsInLogs: ['token'],
+      excludeHeadersInLogs: ['authorization', 'host']
+    };
+
+    const req = new RequestDecoy();
+
+    req.protocol = 'http';
+    req.headers = {
+      authorization: 'Basic **********',
+      host: 'localhost:5000',
+      'content-type': 'application/json'
+    };
+    req.originalUrl = '/test?token=my_token&page=3';
+
+    expect(stripAnsi((<any>Singular).__getLogPath(req))).to.equal('http://localhost:5000/test?token=HIDDEN&page=3');
+    expect((<any>Singular).__getLogPath(req, true).headers).to.be.undefined;
+
+    (<any>Singular).__config.logRequestHeaders = true;
+
+    const rendered = (<any>Singular).__getLogPath(req, true);
+
+    expect(stripAnsi(rendered.headers).match(/HEADERS\n/)).not.to.be.null;
+    expect(stripAnsi(rendered.headers).match(/authorization: HIDDEN/)).not.to.be.null;
+    expect(stripAnsi(rendered.headers).match(/host: HIDDEN/)).not.to.be.null;
+    expect(stripAnsi(rendered.headers).match(/content-type: application\/json/)).not.to.be.null;
+
+  });
 
   it('should transform objects correctly', async function() {
 
