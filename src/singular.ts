@@ -770,22 +770,38 @@ export class Singular {
   /** Initializes all components through hooks and emits related server events. */
   private async __initializeComponents(components: SingularComponent[]) {
 
+    // Localize services for all service injections (converts services to a key-value pair object)
+    const serviceServices = _.reduce(this.__services, (map, service) => {
+
+      map[service.name] = service;
+
+      return map;
+
+    }, {});
+    // Localize services for all router injections (converts services to a key-value pair object)
+    const routerServices = _.reduce(this.__services, (map, service) => {
+
+      map[service.name] = service;
+
+      return map;
+
+    }, {});
+    // Localize config for all service injections
+    const serviceConfig = _.cloneDeep(this.__config);
+    // Localize config for all router injections
+    const routerConfig = _.cloneDeep(this.__config);
+
     for ( const component of components ) {
 
       const moduleType = component.module.__metadata.type === ModuleType.Service ? 'service' : 'router';
 
       if ( component.module.onInjection && typeof component.module.onInjection === 'function' ) {
 
-        // Convert services to a key-value pair object
-        const componentServices = _.reduce(this.__services, (map, service) => {
+        events.emitOnce(`${moduleType}:inject:before`, moduleType === 'service' ? serviceServices : routerServices);
 
-          map[service.name] = service;
+        // Localize component-specific services
+        const componentServices = _.clone(moduleType === 'service' ? serviceServices : routerServices);
 
-          return map;
-
-        }, {});
-
-        events.emitOnce(`${moduleType}:inject:before`, componentServices);
         events.emitOnce(`${component.name}-${moduleType}:inject:before`, componentServices);
 
         await component.module.onInjection(componentServices);
@@ -799,9 +815,11 @@ export class Singular {
 
       if ( component.module.onConfig && typeof component.module.onConfig === 'function' ) {
 
-        const componentConfig = _.cloneDeep(this.__config);
+        events.emitOnce(`${moduleType}:config:before`, moduleType === 'service' ? serviceConfig : routerConfig);
 
-        events.emitOnce(`${moduleType}:config:before`, componentConfig);
+        // Localize component-specific config
+        const componentConfig = _.cloneDeep(moduleType === 'service' ? serviceConfig : routerConfig);
+
         events.emitOnce(`${component.name}-${moduleType}:config:before`, componentConfig);
 
         await component.module.onConfig(componentConfig);

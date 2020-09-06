@@ -5,13 +5,15 @@ import {
   RouteDefinition,
   AggregationTarget
 } from '../../dist/core';
+import { ServerEventManager } from '../../dist/events';
 import { LoggerDecoy, RequestDecoy } from './decoys';
 import { expect } from 'chai';
 import stripAnsi from 'strip-ansi';
+import { wait } from './util';
 
 describe('Singular', function() {
 
-  it.only('should render request path and headers for logs correctly', function () {
+  it('should render request path and headers for logs correctly', function () {
 
     (<any>Singular).__config = {
       excludeQueryParamsInLogs: ['token'],
@@ -478,6 +480,180 @@ describe('Singular', function() {
 
     route.aggregate.pop();
     loggerDecoy.clearHistory();
+
+  });
+
+  it('should scan root directory for components and initialize them correctly', async function() {
+
+    // Set test timeout
+    this.timeout(10000);
+
+    const eventData = [];
+
+    // Inject global event manager
+    (<any>global).events = new ServerEventManager();
+
+    // Inject global logger decoy
+    (<any>global).log = new LoggerDecoy();
+
+    // Attach event listeners
+    events.on('test:component:router:init', name => {
+
+      eventData.push({
+        event: 'test:component:router:init',
+        name,
+        args: []
+      });
+
+    });
+    events.on('test:component:router:config', (name, config) => {
+
+      eventData.push({
+        event: 'test:component:router:config',
+        name,
+        args: [config]
+      });
+
+    });
+    events.on('test:component:router:inject', (name, services) => {
+
+      eventData.push({
+        event: 'test:component:router:inject',
+        name,
+        args: [services]
+      });
+
+    });
+    events.on('test:component:service:init', name => {
+
+      eventData.push({
+        event: 'test:component:service:init',
+        name,
+        args: []
+      });
+
+    });
+    events.on('test:component:service:config', (name, config) => {
+
+      eventData.push({
+        event: 'test:component:service:config',
+        name,
+        args: [config]
+      });
+
+    });
+    events.on('test:component:service:inject', (name, services) => {
+
+      eventData.push({
+        event: 'test:component:service:inject',
+        name,
+        args: [services]
+      });
+
+    });
+
+    // Manipulate config for specific component
+    events.on('test2-service:config:before', config => {
+
+      config.manipulated = true;
+
+    });
+
+    // Manipulate service for specific component
+    events.on('test-router:inject:before', services => {
+
+      services.virtual = true;
+
+    });
+
+    // Manipulate services for all components
+    events.on('service:inject:before', services => {
+
+      services.virtual = null;
+
+    });
+    events.on('router:inject:before', services => {
+
+      services.virtual = null;
+
+    });
+
+    // Manipulate config for all components
+    events.on('service:config:before', config => {
+
+      config.virtual = true;
+
+    });
+    events.on('router:config:before', config => {
+
+      config.virtual = true;
+
+    });
+
+    // Set config
+    (<any>Singular).__config = {
+      injectedConfig: true
+    };
+
+    // Scan and install components
+    (<any>Singular).__installComponents();
+
+    // Initialize all components
+    await (<any>Singular).__initializeComponents((<any>Singular).__services);
+    await (<any>Singular).__initializeComponents((<any>Singular).__routers);
+
+    // Give events time to emit
+    await wait(1000);
+
+    // Check emitted events total
+    expect(eventData.length).to.equal(9);
+    // Check emitted events order
+    expect(eventData.map(e => e.event)).to.deep.equal([
+      'test:component:service:inject',
+      'test:component:service:config',
+      'test:component:service:init',
+      'test:component:service:inject',
+      'test:component:service:config',
+      'test:component:service:init',
+      'test:component:router:inject',
+      'test:component:router:config',
+      'test:component:router:init'
+    ]);
+    // Check emitted events arguments
+    expect(eventData
+      .filter(e => e.event.substr(-7) === ':config' && e.name !== 'test2')
+      .map(e => e.args)
+    ).to.deep.equal([
+      [{ injectedConfig: true, virtual: true }],
+      [{ injectedConfig: true, virtual: true }]
+    ]);
+
+    expect(
+      eventData
+      .filter(e => e.event.substr(-7) === ':config' && e.name === 'test2')
+      .map(e => e.args)
+    ).to.deep.equal([
+      [{ injectedConfig: true, virtual: true, manipulated: true }]
+    ]);
+
+    const mappedServices: any = {
+      virtual: null
+    };
+
+    for ( const service of (<any>Singular).__services ) {
+
+      mappedServices[service.name] = service;
+
+    }
+
+    expect(eventData
+      .filter(e => e.event.substr(-7) === ':inject')
+      .map(e => e.args)
+    ).to.deep.equal([
+      [mappedServices],
+      [mappedServices],
+      [{ ...mappedServices, virtual: true }]
+    ]);
 
   });
 
