@@ -10,21 +10,19 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2018",
-    "declaration": true,
-    "sourceRoot": "src",
+    "declaration": false,
     "outDir": "dist",
     "typeRoots": [
-      "node_modules/@types"
+      "../node_modules/@types"
     ],
     "lib": [
       "es2018"
     ]
   },
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
-    "dist",
-    "docs",
-    "node_modules",
-    "test",
-    "e2e"
+    "server/**/*"
   ]
 }

@@ -4,10 +4,14 @@
   "description": "Singular framework core module",
   "main": "dist/core.js",
   "scripts": {
-    "postinstall": "(cd ./node_modules/@singular/common && npm install && npm start) || echo \"Post install failed!\"",
+    "postinstall": "(cd ./node_modules/@singular/common && npm install && npm start && ((cd ../validators && npm install && npm start) || echo \"@singular/validators was not built\") && ((cd ../pipes && npm install && npm start) || echo \"@singular/pipes was not built\")) || echo \"Post install failed!\"",
     "start": "node ./node_modules/rimraf/bin.js \"./dist\" && ./node_modules/typescript/bin/tsc --build",
     "docs": "node ./node_modules/rimraf/bin.js \"./docs\" && ./node_modules/typedoc/bin/typedoc --out docs src",
-    "test": "node ./node_modules/rimraf/bin.js \"./test/dist\" && ./node_modules/typescript/bin/tsc -p test/tsconfig.json && ./node_modules/mocha/bin/mocha ./test/dist/main.spec.js"
+    "test": "node ./node_modules/rimraf/bin.js \"./test/dist\" && ./node_modules/typescript/bin/tsc -p test/tsconfig.json && ./node_modules/mocha/bin/mocha ./test/dist/main.spec.js",
+    "e2e": "npm run build-e2e-server && npm run build-e2e-tests && npm run run-e2e-tests",
+    "build-e2e-server": "echo \"Building the E2E server...\" && node ./node_modules/rimraf/bin.js \"./e2e/server/dist\" && ./node_modules/typescript/bin/tsc -p e2e/server/tsconfig.json",
+    "build-e2e-tests": "echo \"Building the E2E tests...\" && node ./node_modules/rimraf/bin.js \"./e2e/dist\" && ./node_modules/typescript/bin/tsc -p e2e/tsconfig.json",
+    "run-e2e-tests": "echo \"Running the E2E tests...\" && ./node_modules/mocha/bin/mocha ./e2e/dist/main.spec.js"
   },
   "repository": {
     "type": "git",
@@ -32,7 +36,7 @@
   },
   "homepage": "https://github.com/singularframework/core#readme",
   "dependencies": {
-    "@singular/common": "github:singularframework/common#v1.0.0-alpha.14",
+    "@singular/common": "github:singularframework/common#v1.0.0-alpha.16",
     "body-parser": "^1.19.0",
     "callsites": "^3.1.0",
     "chalk": "^4.1.0",
@@ -47,6 +51,8 @@
     "tsconfig-paths": "^3.9.0"
   },
   "devDependencies": {
+    "@singular/pipes": "github:singularframework/pipes#v1.0.0-alpha.9",
+    "@singular/validators": "github:singularframework/validators#v1.0.0-alpha.10",
     "@types/body-parser": "^1.19.0",
     "@types/chai": "^4.2.12",
     "@types/cookie-parser": "^1.4.2",

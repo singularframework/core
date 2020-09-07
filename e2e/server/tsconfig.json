@@ -10,21 +10,20 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2018",
-    "declaration": true,
+    "declaration": false,
     "sourceRoot": "src",
     "outDir": "dist",
     "typeRoots": [
-      "node_modules/@types"
+      "../../node_modules/@types"
     ],
     "lib": [
       "es2018"
-    ]
-  },
-  "exclude": [
-    "dist",
-    "docs",
-    "node_modules",
-    "test",
-    "e2e"
-  ]
+    ],
+    "paths": {
+      "@pit/model/*": ["./src/models/*.model"],
+      "@pit/service/*": ["./src/services/*.service"],
+      "@pit/router/*": ["./src/routers/*.router"],
+      "@singular/core": ["../../dist/core"]
+    }
+  }
 }

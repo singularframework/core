@@ -12,7 +12,7 @@ import * as tsConfigPaths from 'tsconfig-paths';
 import { ServerLogger, ServerLoggerCore } from './logger';
 import { ServerEventManager } from './events';
 import { ServerSessionManagerInternal } from './session';
-import { ServerError } from './error';
+import { ServerError as ServerErrorConstructor } from './error';
 import { RequestHandler, Request as OriginalRequest } from 'express';
 import callsites from 'callsites';
 import http from 'http';
@@ -38,8 +38,19 @@ import {
   ValidationDefinition,
   BodyValidationDefinition,
   ExecutableValidators,
-  PluginEvents
 } from '@singular/common';
+
+import {
+  PluginDataBeforeConfig,
+  PluginDataAfterConfig,
+  PluginDataBeforeInternalMiddleware,
+  PluginDataAfterInternalMiddleware,
+  PluginDataBeforeUserMiddleware,
+  PluginDataAfterUserMiddleware,
+  PluginDataBeforeLaunch,
+  PluginDataAfterLaunch,
+  PluginLogger
+} from './plugins';
 
 export class Singular {
 
@@ -79,8 +90,6 @@ export class Singular {
   private __services: SingularComponent[] = [];
   /** Logs produced before the logger was initialized. */
   private __cachedLogs: CachedLog[] = [];
-  /** Plugin-specific event manager. */
-  private __pluginEvents = new ServerEventManager();
   /** Installed plugins. */
   private __plugins: Array<InstalledPlugin> = [];
   /** The data to provide to plugins at different stages. */
@@ -90,7 +99,7 @@ export class Singular {
   private __initGlobals() {
 
     (<any>global).events = new ServerEventManager();
-    (<any>global).ServerError = ServerError;
+    (<any>global).ServerError = ServerErrorConstructor;
     (<any>global).log = new ServerLogger(new ServerLoggerCore(this.__config));
     (<any>global).session = new ServerSessionManagerInternal(!! this.__config.sessionManagement, !! this.__config.cookieSecret);
 
@@ -792,7 +801,9 @@ export class Singular {
 
     for ( const component of components ) {
 
-      const moduleType = component.module.__metadata.type === ModuleType.Service ? 'service' : 'router';
+      const moduleType = component.module.__metadata.type === ModuleType.Service ? 'service' : component.module.__metadata.type === ModuleType.Router ? 'router' : 'unknown';
+
+      if ( moduleType === 'unknown' ) continue;
 
       if ( component.module.onInjection && typeof component.module.onInjection === 'function' ) {
 
@@ -864,27 +875,51 @@ export class Singular {
   }
 
   /** Instantiates all plugins. */
-  private async __initPlugins() {
+  private __initPlugins() {
 
-    for ( const plugin of this.__plugins ) {
+    for ( let i = 0; i < this.__plugins.length; i++ ) {
 
-      await plugin.function(this.__pluginEvents, plugin.config);
+      const plugin = this.__plugins[i];
+
+      try {
+
+        plugin.module = new plugin.pluginConstructor(plugin.config);
+
+        if ( ! plugin.module.__metadata ) throw new Error(`Plugin is not decorated!`);
+
+        this.__cachedLogs.push({
+          level: 'debug',
+          message: `Plugin "${plugin.module.__metadata.name}" was installed`
+        });
+
+      }
+      catch (error) {
+
+        this.__plugins.splice(i, 1);
+        i--;
+
+        this.__cachedLogs.push({
+          level: 'error',
+          message: `Plugin "${plugin.module?.__metadata?.name}" failed to install: ${error}`
+        });
+
+      }
 
     }
 
   }
 
-  /** Updates the plugin data and emits the event. */
-  private __emitPluginEvent(event: string) {
+  /** Updates the plugin data and runs plugin hooks. */
+  private async __runPluginHook(hook: string) {
 
-    // Update plugin date
-    if ( event === 'plugin:config:before' ) this.__pluginData = {
+    // Update plugin data
+    if ( hook === 'beforeConfig' ) this.__pluginData = {
       app: this.__app,
       rootdir: __rootdir,
       profiles: _.cloneDeep(this.__configProfiles)
     };
-    if ( event === 'plugin:config:after' ) this.__pluginData.config = _.cloneDeep(this.__config);
-    if ( event === 'plugin:middleware:internal:before' ) this.__pluginData.components = {
+    if ( hook === 'afterConfig' ) this.__pluginData.config = _.cloneDeep(this.__config);
+    if ( hook === 'beforeInternalMiddleware' ) this.__pluginData.components = {
       routers: this.__routers.map(r => ({
         metadata: r.module.__metadata,
         onInit: r.module.onInit,
@@ -899,18 +934,55 @@ export class Singular {
       }))
     };
 
-    // Emit plugin event
-    this.__pluginEvents.emitOnce(event, this.__pluginData);
+    // Run hooks
+    for ( const plugin of this.__plugins ) {
+
+      // If hook not implemented
+      if ( ! plugin.module[hook] ) continue;
+
+      // If invalid hook
+      if ( typeof plugin.module[hook] !== 'function' ) {
+
+        const message = `Invalid hook "${hook}" on plugin "${plugin.module.__metadata.name}"!`;
+
+        if ( log ) log.warn(message);
+        else this.__cachedLogs.push({
+          level: 'warn',
+          message
+        });
+
+        continue;
+
+      }
+
+      // Run hook
+      try {
+
+        const pluginLogger = new PluginLogger(this.__cachedLogs, plugin.module.__metadata.name);
+
+        await plugin.module[hook](pluginLogger, this.__pluginData);
+
+      }
+      catch (error) {
+
+        const message = `Hook "${hook}" of plugin "${plugin.module.__metadata.name}" threw error: ${error}`;
+
+        if ( log ) log.error(message);
+        else this.__cachedLogs.push({
+          level: 'error',
+          message
+        });
+
+      }
+
+    }
 
   }
 
   /** Installs a Singular plugin with the provided plugin config. */
-  public install(plugin: PluginFunction, config?: any) {
+  public install(plugin: PluginConstructor, config?: any) {
 
-    this.__plugins.push({
-      function: plugin,
-      config
-    });
+    this.__plugins.push({ pluginConstructor: plugin, config, module: null });
 
     return this;
 
@@ -947,22 +1019,10 @@ export class Singular {
     (<any>global).__rootdir = path.dirname(callsites()[1].getFileName());
 
     // Initialize all plugins
-    try {
-
-      await this.__initPlugins();
-
-    }
-    catch (error) {
-
-      this.__cachedLogs.push({
-        level: 'error',
-        message: `A plugin failed to initialize: ${error}`
-      });
-
-    }
+    this.__initPlugins();
 
     // Emit plugin event
-    this.__emitPluginEvent('plugin:config:before');
+    await this.__runPluginHook('beforeConfig');
 
     // If config profile not provided or not found
     if ( ! configProfile || ! this.__configProfiles.hasOwnProperty(configProfile) ) {
@@ -1004,26 +1064,26 @@ export class Singular {
     this.__cachedLogs = [];
 
     // Emit plugin event
-    this.__emitPluginEvent('plugin:config:after');
+    await this.__runPluginHook('afterConfig');
 
     // Scan and install all components
     this.__installComponents();
 
     // Emit plugin event
-    this.__emitPluginEvent('plugin:middleware:internal:before');
+    await this.__runPluginHook('beforeInternalMiddleware');
 
     // Mount default top middleware
     this.__mountDefaultTopMiddleware();
 
     // Emit plugin event
-    this.__emitPluginEvent('plugin:middleware:internal:after');
-    this.__emitPluginEvent('plugin:middleware:user:before');
+    await this.__runPluginHook('afterInternalMiddleware');
+    await this.__runPluginHook('beforeUserMiddleware');
 
     // Install routers
     this.__installRouters();
 
     // Emit plugin event
-    this.__emitPluginEvent('plugin:middleware:user:after');
+    await this.__runPluginHook('afterUserMiddleware');
 
     // Disable default Express header
     this.__app.disable('x-powered-by');
@@ -1043,7 +1103,7 @@ export class Singular {
     }
 
     // Emit plugin event
-    this.__emitPluginEvent('plugin:launch:before');
+    await this.__runPluginHook('beforeLaunch');
 
     // Start the server on HTTPS
     if ( this.__config.https ) {
@@ -1056,7 +1116,7 @@ export class Singular {
 
         log.notice(`HTTPS server started on port ${this.__config.httpsPort}`);
         // Emit plugin event
-        this.__emitPluginEvent('plugin:launch:after');
+        this.__runPluginHook('afterLaunch');
         // Emit server event
         events.emit('launch', this.__config.httpsPort, 'https');
 
@@ -1079,7 +1139,7 @@ export class Singular {
 
       log.notice(`Server started on port ${this.__config.port}`);
       // Emit plugin event
-      this.__emitPluginEvent('plugin:launch:after');
+      this.__runPluginHook('afterLaunch');
       // Emit server event
       events.emit('launch', this.__config.port, 'http');
 
@@ -1132,7 +1192,7 @@ interface PathAliases {
 
 }
 
-interface CachedLog {
+export interface CachedLog {
 
   level: 'debug'|'info'|'notice'|'warn'|'error';
   message: string;
@@ -1148,9 +1208,24 @@ interface ConfigProfiles {
 
 interface InstalledPlugin {
 
-  function: PluginFunction;
+  pluginConstructor: PluginConstructor;
+  module: PluginModule;
   config: any;
 
 }
 
-type PluginFunction = (events: PluginEvents, config: any) => void|Promise<void>;
+interface PluginModule {
+
+  __metadata: { name: string; };
+  beforeConfig?(log: PluginLogger, data: PluginDataBeforeConfig): void|Promise<void>;
+  afterConfig?(log: PluginLogger, data: PluginDataAfterConfig): void|Promise<void>;
+  beforeInternalMiddleware?(log: PluginLogger, data: PluginDataBeforeInternalMiddleware): void|Promise<void>;
+  afterInternalMiddleware?(log: PluginLogger, data: PluginDataAfterInternalMiddleware): void|Promise<void>;
+  beforeUserMiddleware?(log: PluginLogger, data: PluginDataBeforeUserMiddleware): void|Promise<void>;
+  afterUserMiddleware?(log: PluginLogger, data: PluginDataAfterUserMiddleware): void|Promise<void>;
+  beforeLaunch?(log: PluginLogger, data: PluginDataBeforeLaunch): void|Promise<void>;
+  afterLaunch?(log: PluginLogger, data: PluginDataAfterLaunch): void|Promise<void>;
+
+}
+
+type PluginConstructor = new (config: any) => any;

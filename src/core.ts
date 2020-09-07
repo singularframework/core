@@ -3,7 +3,7 @@ import { Singular as SingularClass } from './singular';
 import { ServerLogger } from './logger';
 import { ServerEventManager } from './events';
 import { ServerSessionManager } from './session';
-import { ServerError } from './error';
+import { ServerError as ServerErrorConstructor } from './error';
 
 declare global {
 
@@ -14,7 +14,7 @@ declare global {
   /** Global session manager. */
   const session: ServerSessionManager;
   /** Global server error constructor. */
-  const ServerError: ServerError;
+  const ServerError: typeof ServerErrorConstructor;
   /** Root directory path. */
   const __rootdir: string;
 
@@ -22,4 +22,5 @@ declare global {
 
 export * from '@singular/common';
 export * from './decorators';
+export * from './plugins';
 export const Singular = new SingularClass();

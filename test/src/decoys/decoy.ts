@@ -1,5 +1,3 @@
-import { DecoyHistory } from '../models';
-
 export class Decoy<T> {
 
   protected __history: DecoyHistory[] = [];
@@ -49,5 +47,14 @@ class ObjectProxy<T extends Object> implements ProxyHandler<T> {
     return true;
 
   }
+
+}
+
+export interface DecoyHistory {
+
+  name: string;
+  args?: any[];
+  type: 'function'|'property-get'|'property-set';
+  value?: any;
 
 }

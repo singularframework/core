@@ -1,5 +1,5 @@
 import { ModuleType, RouteMethod } from '@singular/common';
-import { Service, Router } from '../../dist/decorators';
+import { Service, Router, Plugin } from '../../dist/decorators';
 import { expect } from 'chai';
 
 describe('Decorators', function() {
@@ -57,6 +57,22 @@ describe('Decorators', function() {
       priority: 2,
       corsPolicy: { origin: true },
       routes: [{ path: '/', method: RouteMethod.GET, middleware: ['m1'] }]
+    });
+
+  });
+
+  it('should correctly provide metadata on decorated plugin classes', function() {
+
+    @Plugin({
+      name: 'test'
+    })
+    class TestPlugin {}
+
+    const testPlugin = new TestPlugin();
+
+    expect((<any>testPlugin).__metadata).to.deep.equal({
+      name: 'test',
+      type: ModuleType.Plugin
     });
 
   });
