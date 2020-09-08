@@ -1,12 +1,10 @@
-import { DateTime } from 'luxon';
-
 export interface StoreItem {
 
   id: string;
   type: StoreItemType;
   title: string;
   artist: string;
-  releaseDate: DateTime;
+  releaseDate: number;
   tracks: Array<MusicTrack>;
   price: number;
   stock: number;

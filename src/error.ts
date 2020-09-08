@@ -1,6 +1,6 @@
 import { Response, Request } from '@singular/common';
 
-export class ServerError {
+export class ServerError extends Error {
 
   public readonly error = true;
   public stack: string;
@@ -9,7 +9,11 @@ export class ServerError {
     public message: string,
     public httpCode: number = 500,
     public code: string = 'UNKNOWN_ERROR'
-  ) { }
+  ) {
+
+    super(message);
+
+  }
 
   /** Determines whether errors responded with ServerError.respond should be logged or not. */
   private static __logResponseErrors: boolean;

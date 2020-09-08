@@ -323,7 +323,7 @@ export class Singular {
   }
 
   /** Generates a generic message for a validation error. */
-  private __generateValidationErrorMessage(targetName: 'header'|'query'|'body', valuePath: string[]): string {
+  private __generateValidationErrorMessage(targetName: 'header'|'query'|'body'|'param', valuePath: string[]): string {
 
     if ( valuePath.length ) {
 
@@ -332,7 +332,7 @@ export class Singular {
     }
     else {
 
-      return `Invalid value in ${targetName === 'header' ? 'headers' : targetName === 'query' ? 'queries' : targetName}!`;
+      return `Invalid value in ${targetName === 'header' ? 'headers' : targetName === 'query' ? 'queries' : targetName === 'param' ? 'parameters' : targetName}!`;
 
     }
 
@@ -426,6 +426,20 @@ export class Singular {
       req.body = await this.__transformObject(req.body, rule.transformer);
 
     }
+    else if ( rule.target === AggregationTarget.Params ) {
+
+      // Reset to original if asked
+      if ( rule.transformer === 'origin' ) {
+
+        req.params = _.cloneDeep(origins.params);
+        return;
+
+      }
+
+      // Can recurse once
+      req.params = await this.__transformObject(req.params, rule.transformer, 1);
+
+    }
     else if ( rule.target === AggregationTarget.Custom ) {
 
       // Send the whole request object to transformer and don't expect a return value
@@ -454,7 +468,7 @@ export class Singular {
   /** Validates the target using the given validator. */
   private async __validateObject(
     target: any,
-    targetName: 'header'|'query'|'body',
+    targetName: 'header'|'query'|'body'|'param',
     validator: ValidatorFunction|AsyncValidatorFunction|ValidationDefinition|BodyValidationDefinition|ExecutableValidators,
     recurseMax: number = Infinity,
     recurseCount: number = 0,
@@ -528,6 +542,12 @@ export class Singular {
       return await this.__validateObject(req.body, 'body', rule.validator);
 
     }
+    else if ( rule.target === AggregationTarget.Params ) {
+
+      // Can recurse once
+      return await this.__validateObject(req.params, 'param', rule.validator, 1);
+
+    }
     else if ( rule.target === AggregationTarget.Custom ) {
 
       // Send the whole request object to validator
@@ -576,7 +596,8 @@ export class Singular {
       origins = {
         headers: _.cloneDeep(req.headers),
         queries: _.cloneDeep(req.query),
-        body: jsonBody ? _.cloneDeep(req.body) : (textBody ? req.body : null)
+        body: jsonBody ? _.cloneDeep(req.body) : (textBody ? req.body : null),
+        params: _.cloneDeep(req.params)
       };
 
     }
@@ -1183,6 +1204,7 @@ interface OriginValues {
   headers: any;
   queries: any;
   body: any;
+  params: any;
 
 }
 

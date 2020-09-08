@@ -5,6 +5,7 @@ import { UsersService } from '@pit/service/users';
 
 @Router({
   name: 'auth',
+  priority: 100,
   routes: [
     route.post('/auth/signup', 'signup', [
       validate.headers({

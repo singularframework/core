@@ -4,5 +4,7 @@ export const prodConfig: ServerConfig = {
   port: 5001,
   enableCors: true,
   tokenSecret: process.env.PIT_TOKEN_SECRET,
-  tokenLifetime: 60 * 60
+  tokenLifetime: 60 * 60,
+  excludeQueryParamsInLogs: ['token'],
+  logResponseErrors: true
 };

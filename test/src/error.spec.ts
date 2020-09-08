@@ -6,14 +6,29 @@ describe('ServerError', function() {
 
   it('should construct a correct server error object', function() {
 
-    expect(new ServerError('Error message')).to.deep.equal({
+    function toNormalObject(error: ServerError, withStack?: boolean) {
+
+      const object: any = {
+        message: error.message,
+        code: error.code,
+        httpCode: error.httpCode,
+        error: error.error
+      };
+
+      if ( withStack ) object.stack = error.stack;
+
+      return object;
+
+    }
+
+    expect(toNormalObject(new ServerError('Error message'))).to.deep.equal({
       message: 'Error message',
       httpCode: 500,
       code: 'UNKNOWN_ERROR',
       error: true
     });
 
-    expect(new ServerError('Error message', 400, 'TEST_ERROR')).to.deep.equal({
+    expect(toNormalObject(new ServerError('Error message', 400, 'TEST_ERROR'))).to.deep.equal({
       message: 'Error message',
       httpCode: 400,
       code: 'TEST_ERROR',
@@ -22,7 +37,7 @@ describe('ServerError', function() {
 
     const error1 = new Error('Native error');
 
-    expect(ServerError.from(error1)).to.deep.equal({
+    expect(toNormalObject(ServerError.from(error1), true)).to.deep.equal({
       message: 'Native error',
       httpCode: 500,
       code: 'UNKNOWN_ERROR',
@@ -34,7 +49,7 @@ describe('ServerError', function() {
 
     (<any>error2).code = 'SHOULD_BE_IGNORED';
 
-    expect(ServerError.from(error2, 404, 'NATIVE_ERROR')).to.deep.equal({
+    expect(toNormalObject(ServerError.from(error2, 404, 'NATIVE_ERROR'), true)).to.deep.equal({
       message: 'Native error',
       httpCode: 404,
       code: 'NATIVE_ERROR',
@@ -46,7 +61,7 @@ describe('ServerError', function() {
 
     (<any>error3).code = 'CUSTOM_CODE';
 
-    expect(ServerError.from(error3, 404)).to.deep.equal({
+    expect(toNormalObject(ServerError.from(error3, 404), true)).to.deep.equal({
       message: 'Native error',
       httpCode: 404,
       code: 'CUSTOM_CODE',

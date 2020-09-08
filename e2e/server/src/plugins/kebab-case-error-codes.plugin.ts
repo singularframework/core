@@ -9,7 +9,7 @@ export class KebabCaseErrorCodesPlugin implements PluginHooks.AfterConfig {
 
     class KebabCaseServerError extends ServerError {
 
-      constructor(message: string, httpCode: number = 500, code: string = 'unknown') {
+      constructor(message: string, httpCode: number = 500, code: string = 'unknown-error') {
 
         super(message, httpCode, code.replace(/_/g, '-').toLowerCase());
 
