@@ -781,7 +781,7 @@ export class Singular {
     // Localize services for all service injections (converts services to a key-value pair object)
     const serviceServices = _.reduce(this.__services, (map, service) => {
 
-      map[service.name] = service;
+      map[service.name] = service.module;
 
       return map;
 
@@ -789,7 +789,7 @@ export class Singular {
     // Localize services for all router injections (converts services to a key-value pair object)
     const routerServices = _.reduce(this.__services, (map, service) => {
 
-      map[service.name] = service;
+      map[service.name] = service.module;
 
       return map;
 

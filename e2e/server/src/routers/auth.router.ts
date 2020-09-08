@@ -1,4 +1,4 @@
-import { Router, route, OnInjection, Request, Response, validate, transform } from '@singular/core';
+import { Router, route, OnInjection, Request, Response, NextFunction, validate, transform } from '@singular/core';
 import { pipe } from '@singular/pipes';
 import { should, could, it } from '@singular/validators';
 import { UsersService } from '@pit/service/users';
@@ -13,7 +13,7 @@ import { UsersService } from '@pit/service/users';
       validate.body({
         username: pipe.trim.lowercase.then(
           should.be.a.string.that.matches(/^[a-z0-9]+$/i).with.length.between(8, 32)
-          .otherwise('Username should be alphanumeric only and 8 to 32 characters long!')
+          .otherwise('Username should be alphanumeric only and 8 to 32 characters long!'),
         ),
         password: should.have.these.allTrue(
           should.be.a.string.otherwise('Password must be a string!'),
@@ -28,6 +28,14 @@ import { UsersService } from '@pit/service/users';
       transform.body({
         username: pipe.trim.lowercase,
         manager: pipe.set(false).when(it.is.undefined)
+      }),
+      validate.body({
+        username: should.have.these.allTrue(UsersService.usernameAvailable).otherwise('Username is taken!')
+      })
+    ]),
+    route.get('/auth/login', ['basicAuth', 'login'], [
+      validate.headers({
+        'authorization': should.match(/^Basic .+$/)
       })
     ])
   ]
@@ -44,18 +52,51 @@ export class AuthRouter implements OnInjection {
 
   signup(req: SignupRequest, res: Response) {
 
-    
+    this.users.createUser(req.body.username, req.body.password, req.body.manager)
+    .then(uid => res.json({ uid }))
+    .catch(error => ServerError.from(error).respond(res));
+
+  }
+
+  basicAuth(req: BasicAuthRequest, res: Response, next: NextFunction) {
+
+    const encoded = req.get('authorization').match(/^Basic (?<encoded>.+)$/).groups.encoded;
+    const decoded = Buffer.from(encoded, 'base64').toString();
+
+    req.auth = {
+      username: decoded.split(':')[0],
+      password: decoded.split(':')[1]
+    };
+
+    next();
+
+  }
+
+  login(req: BasicAuthRequest, res: Response) {
+
+    this.users.authenticateUser(req.auth.username, req.auth.password)
+    .then(token => res.json({ token }))
+    .catch(error => ServerError.from(error).respond(res));
 
   }
 
 }
 
-export interface SignupRequest extends Request {
+interface SignupRequest extends Request {
 
   body: {
     username: string;
     password: string;
     manager?: boolean;
+  };
+
+}
+
+interface BasicAuthRequest extends Request {
+
+  auth: {
+    username: string;
+    password: string;
   };
 
 }

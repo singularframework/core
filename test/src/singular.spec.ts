@@ -647,7 +647,7 @@ describe('Singular', function() {
 
     for ( const service of (<any>Singular).__services ) {
 
-      mappedServices[service.name] = service;
+      mappedServices[service.name] = service.module;
 
     }
 
