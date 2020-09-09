@@ -7,6 +7,7 @@ import { tokenProtected, ProtectedRequest } from '@pit/middleware/token-protecte
 import { managerAccessProtected } from '@pit/middleware/manager-access-protected';
 import { jsonBodyValidator } from '@pit/validator/json-body';
 import { StoreItem, StoreItemType } from '@pit/model/item';
+import { corsPolicy } from '@pit/cors/global';
 
 @Router({
   name: 'store',
@@ -95,7 +96,8 @@ import { StoreItem, StoreItemType } from '@pit/model/item';
         id: should.be.a.string.with.length.equal(20)
       })
     ])
-  ]
+  ],
+  corsPolicy
 })
 export class StoreRouter implements OnInjection {
 

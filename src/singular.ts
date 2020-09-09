@@ -750,8 +750,7 @@ export class Singular {
 
             handlers.push((req: Request, res: Response, next: NextFunction) => {
 
-              router.module[handler].bind(router.module)(req, res)
-              .then(next)
+              router.module[handler].bind(router.module)(req, res, next)
               .catch((error: Error) => {
 
                 if ( error instanceof ServerError ) {
@@ -1162,23 +1161,32 @@ export class Singular {
     // Start the server on HTTPS
     if ( this.__config.https ) {
 
-      https.createServer({
+      const server = https.createServer({
         key: await fs.readFile(path.isAbsolute(this.__config.httpsKey) ? this.__config.httpsKey : path.resolve(__rootdir, this.__config.httpsKey)),
         cert: await fs.readFile(path.isAbsolute(this.__config.httpsCert) ? this.__config.httpsCert : path.resolve(__rootdir, this.__config.httpsCert))
-      }, this.__app)
-      .listen(this.__config.httpsPort, () => {
+      }, this.__app);
 
-        log.notice(`HTTPS server started on port ${this.__config.httpsPort}`);
-        // Emit plugin event
-        this.__runPluginHook('afterLaunch');
-        // Emit server event
-        events.emit('launch', this.__config.httpsPort, 'https');
+      await new Promise((resolve, reject) => {
 
-      })
-      .on('error', (error: Error) => {
+        server.listen(this.__config.httpsPort, () => {
 
-        log.error('Could not start the HTTPS server due to an error:', error);
-        events.emit('error', error);
+          log.notice(`HTTPS server started on port ${this.__config.httpsPort}`);
+          // Emit plugin event
+          this.__runPluginHook('afterLaunch');
+          // Emit server event
+          events.emit('launch', this.__config.httpsPort, 'https');
+
+          resolve();
+
+        })
+        .on('error', (error: Error) => {
+
+          log.error('Could not start the HTTPS server due to an error:', error);
+          events.emit('error', error);
+
+          reject(error);
+
+        });
 
       });
 
@@ -1188,20 +1196,29 @@ export class Singular {
     }
 
     // Start the server on HTTP
-    http.createServer(this.__app)
-    .listen(this.__config.port, () => {
+    const server = http.createServer(this.__app);
 
-      log.notice(`Server started on port ${this.__config.port}`);
-      // Emit plugin event
-      this.__runPluginHook('afterLaunch');
-      // Emit server event
-      events.emit('launch', this.__config.port, 'http');
+    await new Promise((resolve, reject) => {
 
-    })
-    .on('error', (error: Error) => {
+      server.listen(this.__config.port, () => {
 
-      log.error('Could not start the server due to an error:', error);
-      events.emit('error', error);
+        log.notice(`Server started on port ${this.__config.port}`);
+        // Emit plugin event
+        this.__runPluginHook('afterLaunch');
+        // Emit server event
+        events.emit('launch', this.__config.port, 'http');
+
+        resolve();
+
+      })
+      .on('error', (error: Error) => {
+
+        log.error('Could not start the server due to an error:', error);
+        events.emit('error', error);
+
+        reject(error);
+
+      });
 
     });
 

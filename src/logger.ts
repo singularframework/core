@@ -20,7 +20,7 @@ export class ServerLogger {
   */
   public debug(message: any, ...additionalMessages: any[]) {
 
-    const log = this.__core.formatLog('debug', [message, ...additionalMessages]);
+    const log = this.__core.formatLog('debug', [message, ...additionalMessages], this.__sessionId);
 
     // Log to console
     if ( this.__core.canLog('console', 'debug') ) console.debug(log);
@@ -169,7 +169,7 @@ export class ServerLoggerCore {
       error: 'redBright'
     };
     let logTime = `[${DateTime.local().setZone(this.config.timezone).toFormat('dd-LL-yyyy HH:mm:ss:u')}]`;
-    let logSession = `<${sessionId}>`;
+    let logSession = `[${sessionId}]`;
     let logLevel = level.toUpperCase();
     let logMessage = messages
     .map(message => typeof message === 'object' ? inspect(message, false, 2, this.config.colorfulLogs) : message)
@@ -185,7 +185,7 @@ export class ServerLoggerCore {
 
     }
 
-    return `${logTime} ${sessionId ? logSession + ' ' : ''}${logLevel} ${logMessage}`;
+    return `${logTime} ${logLevel} ${sessionId ? logSession + ' ' : ''}${logMessage}`;
 
   }
 

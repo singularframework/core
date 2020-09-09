@@ -1,7 +1,11 @@
 import 'source-map-support/register';
 
-describe('(E2E) The Pit', function() {
+import './dev.spec';
+import './prod.spec';
 
+after(function() {
 
-  
-});
+  // Kill the process
+  setTimeout(() => process.exit(), 500);
+
+})

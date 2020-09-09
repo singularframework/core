@@ -8,10 +8,11 @@
     "start": "node ./node_modules/rimraf/bin.js \"./dist\" && ./node_modules/typescript/bin/tsc --build",
     "docs": "node ./node_modules/rimraf/bin.js \"./docs\" && ./node_modules/typedoc/bin/typedoc --out docs src",
     "test": "node ./node_modules/rimraf/bin.js \"./test/dist\" && ./node_modules/typescript/bin/tsc -p test/tsconfig.json && ./node_modules/mocha/bin/mocha ./test/dist/main.spec.js",
-    "e2e": "npm run build-e2e-server && npm run build-e2e-tests && npm run run-e2e-tests",
+    "e2e": "npm run build-e2e-server && npm run build-e2e-tests && npm run copy-e2e-assets && npm run run-e2e-tests",
     "build-e2e-server": "echo \"Building the E2E server...\" && node ./node_modules/rimraf/bin.js \"./e2e/server/dist\" && ./node_modules/typescript/bin/tsc -p e2e/server/tsconfig.json",
     "build-e2e-tests": "echo \"Building the E2E tests...\" && node ./node_modules/rimraf/bin.js \"./e2e/dist\" && ./node_modules/typescript/bin/tsc -p e2e/tsconfig.json",
-    "run-e2e-tests": "echo \"Running the E2E tests...\" && ./node_modules/mocha/bin/mocha ./e2e/dist/main.spec.js"
+    "run-e2e-tests": "echo \"Running the E2E tests...\" && ./node_modules/mocha/bin/mocha ./e2e/dist/main.spec.js",
+    "copy-e2e-assets": "echo \"Copying E2E assets...\" && ./node_modules/copyfiles/copyfiles -f \"./e2e/server/src/credentials/*.pem\" ./e2e/server/dist/credentials"
   },
   "repository": {
     "type": "git",
@@ -61,6 +62,7 @@
     "@types/express": "^4.17.7",
     "@types/fast-levenshtein": "0.0.1",
     "@types/fs-extra": "^9.0.1",
+    "@types/got": "^9.6.11",
     "@types/jsonwebtoken": "^8.5.0",
     "@types/lodash": "^4.14.161",
     "@types/luxon": "^1.24.4",
@@ -69,7 +71,9 @@
     "@types/source-map-support": "^0.5.3",
     "bcrypt": "^5.0.0",
     "chai": "^4.2.0",
+    "cpy": "^8.1.1",
     "fast-levenshtein": "^3.0.0",
+    "got": "^11.6.1",
     "jsonwebtoken": "^8.5.1",
     "mocha": "^8.1.2",
     "rimraf": "^3.0.2",

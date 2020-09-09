@@ -2,6 +2,7 @@ import { Router, route, OnInjection, OnConfig, Request, Response, NextFunction, 
 import { pipe } from '@singular/pipes';
 import { should, could, it } from '@singular/validators';
 import { UsersService } from '@pit/service/users';
+import { corsPolicy } from '@pit/cors/global';
 
 @Router({
   name: 'auth',
@@ -39,7 +40,8 @@ import { UsersService } from '@pit/service/users';
         'authorization': should.match(/^Basic .+$/)
       })
     ])
-  ]
+  ],
+  corsPolicy
 })
 export class AuthRouter implements OnInjection, OnConfig {
 

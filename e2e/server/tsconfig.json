@@ -10,7 +10,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2018",
-    "declaration": false,
+    "declaration": true,
     "sourceRoot": "src",
     "outDir": "dist",
     "typeRoots": [
@@ -25,6 +25,7 @@
       "@pit/router/*": ["./src/routers/*.router"],
       "@pit/middleware/*": ["./src/middleware/*.middleware"],
       "@pit/validator/*": ["./src/validators/*.validator"],
+      "@pit/cors/*": ["./src/cors/*.policy"],
       "@singular/core": ["../../dist/core"]
     }
   }
