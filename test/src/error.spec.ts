@@ -87,7 +87,8 @@ describe('ServerError', function() {
 
     res.clearHistory();
 
-    req.sessionId = 'SESSION_ID';
+    req.session.id = 'SESSION_ID';
+    req.session.isNew = false;
     (<any>ServerError).__logResponseErrors = true;
 
     new ServerError('Error message!', 404, 'NOT_FOUND').respond(res.decoy, req.decoy);

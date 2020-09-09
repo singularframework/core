@@ -3,7 +3,8 @@ import { Decoy, ObjectDecoy } from './decoy'
 
 export class RequestDecoy extends Decoy<Request> {
 
-  private __sessionId: string;
+  private __session = {};
+  private __sessionDecoy = ObjectDecoy('session', this.__session, this.__history);
   private __cookies = {};
   private __cookiesDecoy = ObjectDecoy('cookies', this.__cookies, this.__history);
   private __signedCookies = {};
@@ -17,26 +18,27 @@ export class RequestDecoy extends Decoy<Request> {
   private __query = {};
   private __queryDecoy = ObjectDecoy('headers', this.__query, this.history);
 
-  public get sessionId(): string {
+  public get session(): any {
 
     this.__history.push({
       type: 'property-get',
-      name: 'sessionId'
+      name: 'session'
     });
 
-    return this.__sessionId;
+    return this.__sessionDecoy;
 
   }
 
-  public set sessionId(value: string) {
+  public set session(value: any) {
 
     this.__history.push({
       type: 'property-set',
-      name: 'sessionId',
+      name: 'session',
       value
     });
 
-    this.__sessionId = value;
+    this.__session = value;
+    this.__sessionDecoy = ObjectDecoy('session', this.__session, this.__history);
 
   }
 

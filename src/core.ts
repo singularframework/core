@@ -23,4 +23,5 @@ declare global {
 export * from '@singular/common';
 export * from './decorators';
 export * from './plugins';
+export { ServerLogger } from './logger';
 export const Singular = new SingularClass();

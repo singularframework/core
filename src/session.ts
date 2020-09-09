@@ -131,7 +131,10 @@ export class ServerSessionManagerInternal extends ServerSessionManager {
     // Extract session ID
     if ( cookies.sessionId ) {
 
-      req.sessionId = cookies.sessionId;
+      req.session = {
+        id: cookies.sessionId,
+        isNew: false
+      };
 
       next();
 
@@ -139,15 +142,18 @@ export class ServerSessionManagerInternal extends ServerSessionManager {
     // Generate new session ID
     else {
 
-      req.sessionId = this.__generateSessionId();
+      req.session = {
+        id: this.__generateSessionId(),
+        isNew: true
+      };
 
-      res.cookie('sessionId', req.sessionId, { signed: this.__signed });
+      res.cookie('sessionId', req.session.id, { signed: this.__signed });
 
       // Run created handler
-      (async () => await this.__handlers?.created(req.sessionId))()
+      (async () => await this.__handlers?.created(req.session.id))()
       .catch(error => {
 
-        log.error(`Session's created event threw an error!`, error);
+        log.id(req.session.id).error(`Session's created event threw an error!`, error);
 
       })
       .finally(() => next());

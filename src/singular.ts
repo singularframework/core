@@ -196,28 +196,13 @@ export class Singular {
   /** Mounts all default middleware that should sit on top of the stack. */
   private __mountDefaultTopMiddleware() {
 
-    // Install body parsers
-    this.__app.use(bodyParser.text());
-    this.__app.use(bodyParser.json());
-    this.__app.use(bodyParser.urlencoded({ extended: true }));
-    this.__app.use(bodyParser.raw({ type: 'application/octet-stream', limit: this.__config.fileUploadLimit }));
-
-    // Install body parsing error
-    this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
-
-      new ServerError('Invalid body!', 400, 'INVALID_BODY').respond(res);
-
-    });
-
-    log.debug('Body parser middleware have been installed');
-
     // Install cookie parser
     this.__app.use(cookieParser(this.__config.cookieSecret));
 
     // Install cookie parser error handler
     this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 
-      new ServerError('Invalid cookies!', 400, 'INVALID_COOKIES').respond(res);
+      new ServerError('Invalid cookies!', 400, 'INVALID_COOKIES').respond(res, req);
 
     });
 
@@ -231,6 +216,21 @@ export class Singular {
       log.debug('Session manager middleware has been installed');
 
     }
+
+    // Install body parsers
+    this.__app.use(bodyParser.text());
+    this.__app.use(bodyParser.json());
+    this.__app.use(bodyParser.urlencoded({ extended: true }));
+    this.__app.use(bodyParser.raw({ type: 'application/octet-stream', limit: this.__config.fileUploadLimit }));
+
+    // Install body parsing error
+    this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+
+      new ServerError('Invalid body!', 400, 'INVALID_BODY').respond(res, req);
+
+    });
+
+    log.debug('Body parser middleware have been installed');
 
   }
 
@@ -282,7 +282,7 @@ export class Singular {
   /** Mounts the predictive 404 middleware. */
   private __mountPredictive404() {
 
-    this.__app.use('*', (req, res, next) => {
+    this.__app.use('*', (req: Request, res, next) => {
 
       let matches: number = 0;
 
@@ -295,7 +295,7 @@ export class Singular {
       });
 
       if ( matches ) next();
-      else new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res);
+      else new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res, req);
 
     });
 
@@ -644,8 +644,8 @@ export class Singular {
     return (req: Request, res: Response, next: NextFunction) => {
 
       this.__executeAggregation(route, req)
-      .then(result => result.reject ? new ServerError(result.reason.message, 400, result.code).respond(res) : next())
-      .catch(error => ServerError.from(error, 500).respond(res));
+      .then(result => result.reject ? new ServerError(result.reason.message, 400, result.code).respond(res, req) : next())
+      .catch(error => ServerError.from(error, 500).respond(res, req));
 
     };
 
@@ -692,21 +692,21 @@ export class Singular {
         const handlers: RequestHandler[] = [];
 
         // Create route logger
-        handlers.push((req, res, next) => {
+        handlers.push((req: Request, res, next) => {
 
           // Log headers and path
           if ( this.__config.logRequestHeaders ) {
 
             const url = this.__getLogPath(req, true);
 
-            log.debug(url.headers);
-            log.debug(req.method.toUpperCase(), url.path);
+            (req.session ? log.id(req.session.id) : log).debug(url.headers);
+            (req.session ? log.id(req.session.id) : log).debug(req.method.toUpperCase(), url.path);
 
           }
           // Log path
           else {
 
-            log.debug(req.method.toUpperCase(), this.__getLogPath(req));
+            (req.session ? log.id(req.session.id) : log).debug(req.method.toUpperCase(), this.__getLogPath(req));
 
           }
 
@@ -772,9 +772,9 @@ export class Singular {
     // Install 404 router
     if ( ! this.__config.predictive404 ) {
 
-      this.__app.use('*', (req, res) => {
+      this.__app.use('*', (req: Request, res) => {
 
-        new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res);
+        new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res, req);
 
       });
 
@@ -785,10 +785,10 @@ export class Singular {
     // Install error handler
     this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 
-      log.error('An unknown error has occured:', error);
+      (req.session ? log.id(req.session.id) : log).error('An unknown error has occured:', error);
       events.emit('error', error);
 
-      if ( ! res.headersSent ) new ServerError('An unknown error has occured!').respond(res);
+      if ( ! res.headersSent ) new ServerError('An unknown error has occured!').respond(res, req);
 
     });
 

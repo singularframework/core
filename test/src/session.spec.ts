@@ -70,6 +70,8 @@ describe('ServerSessionManager', function() {
 
   it('should generate session ID and manage claims correctly', async function() {
 
+    (<any>global).log = new LoggerDecoy();
+
     this.timeout(10000);
 
     let session = new ServerSessionManagerInternal(true, false);
@@ -90,15 +92,15 @@ describe('ServerSessionManager', function() {
       { type: 'function', name: 'next' }
     ]);
 
-    // sessionId must have been set
+    // req.session must have been set
     expect(
       req.history
-      .filter(h => h.name === 'sessionId' && h.type === 'property-set')
+      .filter(h => h.name === 'session' && h.type === 'property-set')
       .length
     ).to.equal(1);
     expect(
       req.history
-      .filter(h => h.name === 'sessionId' && h.type === 'property-set')[0].value
+      .filter(h => h.name === 'session' && h.type === 'property-set')[0].value
     ).not.to.be.undefined;
 
     // Response cookie should have been set
@@ -108,7 +110,7 @@ describe('ServerSessionManager', function() {
       name: 'cookie',
       args: [
         'sessionId',
-        req.history.filter(h => h.name === 'sessionId' && h.type === 'property-set')[0].value,
+        req.history.filter(h => h.name === 'session' && h.type === 'property-set')[0].value.id,
         { signed: false }
       ]
     });
@@ -133,7 +135,7 @@ describe('ServerSessionManager', function() {
     await next.then();
     next.reset();
 
-    const sessionId = req.history.filter(h => h.name === 'sessionId' && h.type === 'property-set')[0].value;
+    const sessionId = req.history.filter(h => h.name === 'session' && h.type === 'property-set')[0].value.id;
 
     // Created handler should have worked
     expect(claims.hasOwnProperty(sessionId)).to.be.true;
@@ -196,7 +198,7 @@ describe('ServerSessionManager', function() {
     await next.then();
     next.reset();
 
-    expect(req.sessionId).to.equal('SESSION_ID');
+    expect(req.session.id).to.equal('SESSION_ID');
 
     await session.setClaim('SESSION_ID', 'name', 'Mark');
 

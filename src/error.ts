@@ -49,7 +49,7 @@ export class ServerError extends Error {
 
     if ( ! ServerError.__logResponseErrors ) return;
 
-    const logger = (req && req.sessionId ? log.id(req.sessionId) : log)[this.httpCode === 500 ? 'warn' : 'debug'].bind(log);
+    const logger = (req && req.session ? log.id(req.session.id) : log)[this.httpCode === 500 ? 'warn' : 'debug'].bind(log);
 
     logger(`Responded to request with status ${this.httpCode} and error code "${this.code}"!`);
 
