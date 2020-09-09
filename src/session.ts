@@ -118,6 +118,16 @@ export class ServerSessionManager {
 
   }
 
+  /**
+  * Calls the 'created' handler manually (no need to call this function if `sessionManagement` is true in server config).
+  * @param id A session ID.
+  */
+  public created(id: string): void|Promise<void> {
+
+    if ( this.__handlers.created ) return this.__handlers.created(id);
+
+  }
+
 }
 
 export class ServerSessionManagerInternal extends ServerSessionManager {
@@ -157,7 +167,11 @@ export class ServerSessionManagerInternal extends ServerSessionManager {
       res.cookie('sessionId', req.session.id, { signed: this.__signed });
 
       // Run created handler
-      (async () => await this.__handlers?.created(req.session.id))()
+      (async () => {
+
+        if ( this.__handlers.created ) return await this.__handlers.created(req.session.id);
+
+      })()
       .catch(error => {
 
         log.id(req.session.id).error(`Session's created event threw an error!`, error);
