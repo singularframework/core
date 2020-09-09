@@ -4,6 +4,21 @@ export class ServerSessionManager {
 
   protected __handlers: SessionHandlers = {};
 
+  protected __generateSessionId(): string {
+
+    const charset = 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM0123456789';
+    let id: string = '';
+
+    for ( let i = 0; i < 20; i++ ) {
+
+      id += charset[Math.floor(Math.random() * charset.length)];
+
+    }
+
+    return id;
+
+  }
+
   constructor(
     protected __enabled: boolean
   ) { }
@@ -96,6 +111,13 @@ export class ServerSessionManager {
 
   }
 
+  /** Generates a new session ID and returns it. */
+  public generateId(): string {
+
+    return this.__generateSessionId();
+
+  }
+
 }
 
 export class ServerSessionManagerInternal extends ServerSessionManager {
@@ -106,21 +128,6 @@ export class ServerSessionManagerInternal extends ServerSessionManager {
   ) {
 
     super(__enabled);
-
-  }
-
-  private __generateSessionId(): string {
-
-    const charset = 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM0123456789';
-    let id: string = '';
-
-    for ( let i = 0; i < 20; i++ ) {
-
-      id += charset[Math.floor(Math.random() * charset.length)];
-
-    }
-
-    return id;
 
   }
 

@@ -745,7 +745,40 @@ export class Singular {
 
           }
 
-          handlers.push(router.module[handler].bind(router.module));
+          // Wrap the middleware with an error handler if middleware is async
+          if ( router.module[handler].constructor.name === 'AsyncFunction' ) {
+
+            handlers.push((req: Request, res: Response, next: NextFunction) => {
+
+              router.module[handler].bind(router.module)(req, res)
+              .then(next)
+              .catch((error: Error) => {
+
+                if ( error instanceof ServerError ) {
+
+                  if ( ! res.headersSent ) error.respond(res, req);
+
+                }
+                else {
+
+                  (req.session ? log.id(req.session.id) : log).error('An error has occured:', error);
+
+                  if ( ! res.headersSent ) new ServerError('An unknown error has occured!').respond(res, req);
+
+                }
+
+                events.emit('error', error);
+
+              });
+
+            });
+
+          }
+          else {
+
+            handlers.push(router.module[handler].bind(router.module));
+
+          }
 
         }
 
@@ -785,7 +818,7 @@ export class Singular {
     // Install error handler
     this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 
-      (req.session ? log.id(req.session.id) : log).error('An unknown error has occured:', error);
+      (req.session ? log.id(req.session.id) : log).error('An error has occured:', error);
       events.emit('error', error);
 
       if ( ! res.headersSent ) new ServerError('An unknown error has occured!').respond(res, req);
