@@ -6,5 +6,6 @@ export const prodConfig: ServerConfig = {
   tokenSecret: process.env.PIT_TOKEN_SECRET,
   tokenLifetime: 60 * 60,
   excludeQueryParamsInLogs: ['token'],
-  logResponseErrors: true
+  logResponseErrors: true,
+  sessionManagement: true
 };

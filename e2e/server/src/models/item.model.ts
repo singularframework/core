@@ -14,9 +14,7 @@ export interface StoreItem {
 export enum StoreItemType {
 
   Album = 'album',
-  Single = 'single',
-  EP = 'ep',
-  Live = 'live'
+  Single = 'single'
 
 }
 

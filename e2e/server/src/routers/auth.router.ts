@@ -1,4 +1,4 @@
-import { Router, route, OnInjection, Request, Response, NextFunction, validate, transform } from '@singular/core';
+import { Router, route, OnInjection, OnConfig, Request, Response, NextFunction, validate, transform, ServerConfig } from '@singular/core';
 import { pipe } from '@singular/pipes';
 import { should, could, it } from '@singular/validators';
 import { UsersService } from '@pit/service/users';
@@ -41,9 +41,10 @@ import { UsersService } from '@pit/service/users';
     ])
   ]
 })
-export class AuthRouter implements OnInjection {
+export class AuthRouter implements OnInjection, OnConfig {
 
   private users: UsersService;
+  private config: ServerConfig;
 
   onInjection({ users }) {
 
@@ -51,11 +52,20 @@ export class AuthRouter implements OnInjection {
 
   }
 
-  signup(req: SignupRequest, res: Response) {
+  onConfig(config: ServerConfig) {
 
-    this.users.createUser(req.body.username, req.body.password, req.body.manager)
-    .then(uid => res.json({ uid }))
-    .catch(error => ServerError.from(error).respond(res));
+    this.config = config;
+
+  }
+
+  async signup(req: SignupRequest, res: Response) {
+
+    const uid = await this.users.createUser(req.body.username, req.body.password, req.body.manager);
+
+    // Set claim
+    if ( req?.session.isNew ) await session.setClaim(req.session.id, 'username', req.body.username);
+
+    res.json({ uid });
 
   }
 
@@ -73,11 +83,39 @@ export class AuthRouter implements OnInjection {
 
   }
 
-  login(req: BasicAuthRequest, res: Response) {
+  async login(req: BasicAuthRequest, res: Response) {
 
-    this.users.authenticateUser(req.auth.username, req.auth.password)
-    .then(token => res.json({ token }))
-    .catch(error => ServerError.from(error).respond(res));
+    const token = await this.users.authenticateUser(req.auth.username, req.auth.password);
+
+    // If session is new, set username claim
+    if ( req?.session.isNew ) {
+
+      await session.setClaim(req.session.id, 'username', req.auth.username);
+
+    }
+    // Otherwise
+    else if ( ! req?.session.isNew ) {
+
+      const username: string = await session.getClaim(req.session.id, 'username');
+
+      // If username claim exist with different value
+      if ( username !== req.auth.username ) {
+
+        // Generate new session ID
+        const newSessionId = session.generateId;
+
+        // Reset cookie
+        res.clearCookie('sessionId');
+        res.cookie('sessionId', newSessionId, { signed: !! this.config.cookieSecret });
+
+        // Map old session ID to the new one
+        await session.setClaim(req.session.id, 'mapped', newSessionId);
+
+      }
+
+    }
+
+    res.json({ token });
 
   }
 

@@ -117,7 +117,7 @@ export class StoreRouter implements OnInjection {
 
     this.store.queryItems(req.params.q)
     .then(result => res.json(result))
-    .catch(error => ServerError.from(error).respond(res));
+    .catch(error => ServerError.from(error).respond(res, req));
 
   }
 
@@ -125,39 +125,63 @@ export class StoreRouter implements OnInjection {
 
     StoreService.getItem(req.params.id)
     .then(item => res.json(item))
-    .catch(error => ServerError.from(error, error.httpCode || 400).respond(res));
+    .catch(error => ServerError.from(error, error.httpCode || 400).respond(res, req));
 
   }
 
   purchaseItem(req: PurchaseRequest, res: Response) {
 
     this.store.updateItem(req.params.id, { stock: req.body.stock - 1 })
-    .then(() => res.json({ message: `Purchased item ${req.body.title} for user ${req.user.username}` }))
-    .catch(error => ServerError.from(error).respond(res));
+    .then(() => {
+
+      log.id(req.session.id).info(`Purchased item ${req.body.title} for user ${req.user.username}`);
+
+      res.json({ message: `Purchased item ${req.body.title} for user ${req.user.username}` });
+
+    })
+    .catch(error => ServerError.from(error).respond(res, req));
 
   }
 
   newItem(req: ProtectedRequest, res: Response) {
 
     this.store.newItem(req.body)
-    .then(id => res.json({ message: `Added new item with ID "${id}".` }))
-    .catch(error => ServerError.from(error).respond(res));
+    .then(id => {
+
+      log.id(req.session.id).info(`Manager "${req.user.username}" added a new item with ID "${id}".`);
+
+      res.json({ message: `Added new item with ID "${id}".` });
+
+    })
+    .catch(error => ServerError.from(error).respond(res, req));
 
   }
 
   updateItem(req: ProtectedRequest, res: Response) {
 
     this.store.updateItem(req.params.id, req.body)
-    .then(() => res.json({ message: `Item "${req.params.id}" was updated` }))
-    .catch(error => ServerError.from(error).respond(res));
+    .then(() => {
+
+      log.id(req.session.id).info(`Manager "${req.user.username}" updated item "${req.params.id}"`);
+
+      res.json({ message: `Item "${req.params.id}" was updated` });
+
+    })
+    .catch(error => ServerError.from(error).respond(res, req));
 
   }
 
   deleteItem(req: ProtectedRequest, res: Response) {
 
     this.store.deleteItem(req.params.id)
-    .then(() => res.json({ message: `Item "${req.params.id}" was deleted` }))
-    .catch(error => ServerError.from(error).respond(res));
+    .then(() => {
+
+      log.id(req.session.id).notice(`Manager "${req.user.username}" deleted item "${req.params.id}"`);
+
+      res.json({ message: `Item "${req.params.id}" was deleted` });
+
+    })
+    .catch(error => ServerError.from(error).respond(res, req));
 
   }
 

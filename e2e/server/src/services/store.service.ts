@@ -54,8 +54,6 @@ export class StoreService implements OnInit {
       ...item
     });
 
-    log.info(`Created new item "${id}"`);
-
     return id;
 
   }
@@ -69,8 +67,6 @@ export class StoreService implements OnInit {
 
     await fs.writeJson(path.join(this.collectionPath, `${id}.json`), storeItem);
 
-    log.info(`Item "${id}" was updated`);
-
   }
 
   /** Deletes an item by ID. */
@@ -80,8 +76,6 @@ export class StoreService implements OnInit {
       throw new ServerError('Item not found!', 400, 'ITEM_NOT_FOUND');
 
     await fs.remove(path.join(this.collectionPath, `${id}.json`));
-
-    log.info(`Item "${id}" was deleted`);
 
   }
 

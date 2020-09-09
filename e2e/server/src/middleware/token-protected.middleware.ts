@@ -1,26 +1,15 @@
-import { Request, Response, NextFunction } from '@singular/core';
+import { Request } from '@singular/core';
 import { UsersService, TokenData } from '@pit/service/users';
 import { User } from '@pit/model/user';
 
 export function tokenProtected(router: RouterWithUsersService) {
 
-  return (req: ProtectedRequest, res: Response, next: NextFunction) => {
+  return async (req: ProtectedRequest) => {
 
-    router.users.decryptToken(req.query.token)
-    .then(data => {
+    req.tokenData = await router.users.decryptToken(req.query.token);
+    req.user = await router.users.getUser(req.tokenData.uid);
 
-      req.tokenData = data;
-
-      return router.users.getUser(data.uid);
-
-    })
-    .then(user => {
-
-      req.user = user;
-      next();
-
-    })
-    .catch(error => ServerError.from(error, 400).respond(res));
+    if ( req?.session.isNew ) await session.setClaim(req.session.id, 'username', req.user.username);
 
   };
 
