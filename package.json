@@ -37,7 +37,7 @@
   },
   "homepage": "https://github.com/singularframework/core#readme",
   "dependencies": {
-    "@singular/common": "github:singularframework/common#v1.0.0-alpha.19",
+    "@singular/common": "github:singularframework/common#v1.0.0-alpha.21",
     "body-parser": "^1.19.0",
     "callsites": "^3.1.0",
     "chalk": "^4.1.0",
@@ -47,6 +47,7 @@
     "fs-extra": "^9.0.1",
     "lodash": "^4.17.20",
     "luxon": "^1.25.0",
+    "micromatch": "^4.0.2",
     "source-map-support": "^0.5.19",
     "strip-ansi": "^6.0.0",
     "tsconfig-paths": "^3.9.0"
@@ -66,6 +67,7 @@
     "@types/jsonwebtoken": "^8.5.0",
     "@types/lodash": "^4.14.161",
     "@types/luxon": "^1.24.4",
+    "@types/micromatch": "^4.0.1",
     "@types/mocha": "^8.0.3",
     "@types/node": "^14.6.0",
     "@types/source-map-support": "^0.5.3",

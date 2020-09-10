@@ -15,6 +15,7 @@ import { ServerSessionManagerInternal } from './session';
 import { ServerError as ServerErrorConstructor } from './error';
 import { RequestHandler, Request as OriginalRequest } from 'express';
 import callsites from 'callsites';
+import micromatch from 'micromatch';
 import http from 'http';
 import https from 'https';
 import {
@@ -88,6 +89,8 @@ export class Singular {
   private __routers: SingularComponent[] = [];
   /** Installed service components. */
   private __services: SingularComponent[] = [];
+  /** Installed interceptor components. */
+  private __interceptors: SingularComponent[] = [];
   /** Logs produced before the logger was initialized. */
   private __cachedLogs: CachedLog[] = [];
   /** Installed plugins. */
@@ -155,7 +158,7 @@ export class Singular {
 
       try {
 
-        const initializedModule: BasicModule = new module();
+        const initializedModule: CompleteWithHooks = new module();
 
         if ( ! initializedModule.__metadata ) continue;
 
@@ -181,6 +184,35 @@ export class Singular {
           this.__cachedLogs.push({ level: 'debug', message: `Router "${initializedModule.__metadata.name}" installed` });
 
         }
+        else if ( initializedModule.__metadata.type === ModuleType.Interceptor ) {
+
+          // Avoid installation if onInterception was not implemented
+          if ( typeof initializedModule.onInterception !== 'function' ) {
+
+            // Cache log so it will be logged when the logger gets initialized
+            this.__cachedLogs.push({ level: 'warn', message: `Interceptor "${initializedModule.__metadata.name}" does not implement OnInterception!` });
+            continue;
+
+          }
+
+          // Avoid installation if onInterception is async
+          if ( initializedModule.onInterception.constructor.name === 'AsyncFunction' ) {
+
+            // Cache log so it will be logged when the logger gets initialized
+            this.__cachedLogs.push({ level: 'warn', message: `Interceptor "${initializedModule.__metadata.name}" defines async onInterception!` });
+            continue;
+
+          }
+
+          this.__interceptors.push({
+            name: initializedModule.__metadata.name,
+            module: initializedModule
+          });
+
+          // Cache log so it will be logged when the logger gets initialized
+          this.__cachedLogs.push({ level: 'debug', message: `Interceptor "${initializedModule.__metadata.name}" installed` });
+
+        }
 
       }
       catch {
@@ -195,6 +227,56 @@ export class Singular {
 
   /** Mounts all default middleware that should sit on top of the stack. */
   private __mountDefaultTopMiddleware() {
+
+    // Install interceptor middleware
+    this.__app.use((req, res, next) => {
+
+      const originalSend = res.send;
+      const originalJson = res.json;
+      const url = new URL(`${req.protocol}://${req.get('host')}${req.originalUrl}`).pathname;
+      const interceptors: SingularComponent[] = [];
+
+      // Select matching interceptors
+      for ( const interceptor of this.__interceptors ) {
+
+        const patterns = interceptor.module.__metadata.intercepts;
+
+        if ( patterns === 'all' || micromatch.isMatch(url, patterns) )
+          interceptors.push(interceptor);
+
+      }
+
+      // Monkey-patch methods to run interceptors
+      res.send = (body?: any) => {
+
+        let intercepted = _.cloneDeep(body);
+
+        for ( const interceptor of interceptors ) {
+
+          intercepted = interceptor.module.onInterception(intercepted, req, res);
+
+        }
+
+        return originalSend(intercepted);
+
+      };
+      res.json = (body?: any) => {
+
+        let intercepted = _.cloneDeep(body);
+
+        for ( const interceptor of interceptors ) {
+
+          intercepted = interceptor.module.onInterception(intercepted, req, res);
+
+        }
+
+        return originalJson(intercepted);
+
+      };
+
+      next();
+
+    });
 
     // Install cookie parser
     this.__app.use(cookieParser(this.__config.cookieSecret));
@@ -847,23 +929,33 @@ export class Singular {
       return map;
 
     }, {});
+    // Localize services for all interceptor injections (converts services to a key-value pair object)
+    const interceptorServices = _.reduce(this.__services, (map, service) => {
+
+      map[service.name] = service.module;
+
+      return map;
+
+    }, {});
     // Localize config for all service injections
     const serviceConfig = _.cloneDeep(this.__config);
     // Localize config for all router injections
     const routerConfig = _.cloneDeep(this.__config);
+    // Localize config for all interceptor injections
+    const interceptorConfig = _.cloneDeep(this.__config);
 
     for ( const component of components ) {
 
-      const moduleType = component.module.__metadata.type === ModuleType.Service ? 'service' : component.module.__metadata.type === ModuleType.Router ? 'router' : 'unknown';
+      const moduleType = (ModuleType[component.module.__metadata.type] || 'unknown').toLowerCase();
 
       if ( moduleType === 'unknown' ) continue;
 
       if ( component.module.onInjection && typeof component.module.onInjection === 'function' ) {
 
-        events.emitOnce(`${moduleType}:inject:before`, moduleType === 'service' ? serviceServices : routerServices);
+        events.emitOnce(`${moduleType}:inject:before`, moduleType === 'service' ? serviceServices : moduleType === 'router' ? routerServices : interceptorServices);
 
         // Localize component-specific services
-        const componentServices = _.clone(moduleType === 'service' ? serviceServices : routerServices);
+        const componentServices = _.clone(moduleType === 'service' ? serviceServices : moduleType === 'router' ? routerServices : interceptorServices);
 
         events.emitOnce(`${component.name}-${moduleType}:inject:before`, componentServices);
 
@@ -878,10 +970,10 @@ export class Singular {
 
       if ( component.module.onConfig && typeof component.module.onConfig === 'function' ) {
 
-        events.emitOnce(`${moduleType}:config:before`, moduleType === 'service' ? serviceConfig : routerConfig);
+        events.emitOnce(`${moduleType}:config:before`, moduleType === 'service' ? serviceConfig : moduleType === 'router' ? routerConfig : interceptorConfig);
 
         // Localize component-specific config
-        const componentConfig = _.cloneDeep(moduleType === 'service' ? serviceConfig : routerConfig);
+        const componentConfig = _.cloneDeep(moduleType === 'service' ? serviceConfig : moduleType === 'router' ? routerConfig : interceptorConfig);
 
         events.emitOnce(`${component.name}-${moduleType}:config:before`, componentConfig);
 
@@ -916,12 +1008,13 @@ export class Singular {
   private __installComponents() {
 
     this.__scanDirRec(__rootdir)
-    .filter(file => !! path.basename(file).match(/^(.+)\.((service)|(router))\.js$/))
+    .filter(file => !! path.basename(file).match(/^(.+)\.((service)|(router)|(interceptor))\.js$/))
     .forEach(file => this.__installComponent(file));
 
     // Sort components based on priority
     this.__routers = _.orderBy(this.__routers, router => router.module.__metadata.priority, ['desc']);
     this.__services = _.orderBy(this.__services, service => service.module.__metadata.priority, ['desc']);
+    this.__interceptors = _.orderBy(this.__interceptors, interceptor => interceptor.module.__metadata.priority, ['desc']);
 
     return this;
 
@@ -1146,6 +1239,7 @@ export class Singular {
 
       await this.__initializeComponents(this.__services);
       await this.__initializeComponents(this.__routers);
+      await this.__initializeComponents(this.__interceptors);
 
     }
     catch (error) {
@@ -1231,6 +1325,7 @@ interface CompleteWithHooks extends BasicModule {
   onInjection?(services: any): void|Promise<void>;
   onConfig?(config: ServerConfig): void|Promise<void>;
   onInit?(): void|Promise<void>;
+  onInterception?(body: any, req: Request, res: Response): any;
 
 }
 

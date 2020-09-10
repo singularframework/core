@@ -1,4 +1,4 @@
-import { ModuleType, PluginDecoratorArgs, ServiceDecoratorArgs, RouterDecoratorArgs } from '@singular/common';
+import { ModuleType, PluginDecoratorArgs, ServiceDecoratorArgs, RouterDecoratorArgs, InterceptorDecoratorArgs } from '@singular/common';
 
 export function Service(config: ServiceDecoratorArgs) {
 
@@ -24,6 +24,21 @@ export function Router(config: RouterDecoratorArgs) {
       routes: config.routes,
       priority: config.priority || 0,
       corsPolicy: config.corsPolicy
+    };
+
+  };
+
+}
+
+export function Interceptor(config: InterceptorDecoratorArgs) {
+
+  return (target: any) => {
+
+    target.prototype.__metadata = {
+      name: config.name,
+      type: ModuleType.Interceptor,
+      priority: config.priority || 0,
+      intercepts: config.intercepts || 'all'
     };
 
   };

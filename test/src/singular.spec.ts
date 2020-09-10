@@ -551,6 +551,33 @@ describe('Singular', function() {
       });
 
     });
+    events.on('test:component:interceptor:init', name => {
+
+      eventData.push({
+        event: 'test:component:interceptor:init',
+        name,
+        args: []
+      });
+
+    });
+    events.on('test:component:interceptor:config', (name, config) => {
+
+      eventData.push({
+        event: 'test:component:interceptor:config',
+        name,
+        args: [config]
+      });
+
+    });
+    events.on('test:component:interceptor:inject', (name, services) => {
+
+      eventData.push({
+        event: 'test:component:interceptor:inject',
+        name,
+        args: [services]
+      });
+
+    });
 
     // Manipulate config for specific component
     events.on('test2-service:config:before', config => {
@@ -589,6 +616,11 @@ describe('Singular', function() {
       config.virtual = true;
 
     });
+    events.on('interceptor:config:before', config => {
+
+      config.virtual = true;
+
+    });
 
     // Set config
     (<any>Singular).__config = {
@@ -606,12 +638,13 @@ describe('Singular', function() {
     // Initialize all components
     await (<any>Singular).__initializeComponents((<any>Singular).__services);
     await (<any>Singular).__initializeComponents((<any>Singular).__routers);
+    await (<any>Singular).__initializeComponents((<any>Singular).__interceptors);
 
     // Give events time to emit
     await wait(1000);
 
     // Check emitted events total
-    expect(eventData.length).to.equal(9);
+    expect(eventData.length).to.equal(12);
     // Check emitted events order
     expect(eventData.map(e => e.event)).to.deep.equal([
       'test:component:service:inject',
@@ -622,13 +655,17 @@ describe('Singular', function() {
       'test:component:service:init',
       'test:component:router:inject',
       'test:component:router:config',
-      'test:component:router:init'
+      'test:component:router:init',
+      'test:component:interceptor:inject',
+      'test:component:interceptor:config',
+      'test:component:interceptor:init'
     ]);
     // Check emitted events arguments
     expect(eventData
       .filter(e => e.event.substr(-7) === ':config' && e.name !== 'test2')
       .map(e => e.args)
     ).to.deep.equal([
+      [{ injectedConfig: true, virtual: true }],
       [{ injectedConfig: true, virtual: true }],
       [{ injectedConfig: true, virtual: true }]
     ]);
@@ -641,9 +678,7 @@ describe('Singular', function() {
       [{ injectedConfig: true, virtual: true, manipulated: true }]
     ]);
 
-    const mappedServices: any = {
-      virtual: null
-    };
+    const mappedServices: any = {};
 
     for ( const service of (<any>Singular).__services ) {
 
@@ -653,11 +688,12 @@ describe('Singular', function() {
 
     expect(eventData
       .filter(e => e.event.substr(-7) === ':inject')
-      .map(e => e.args)
+      .map(e => ({ args: e.args, event: e.event }))
     ).to.deep.equal([
-      [mappedServices],
-      [mappedServices],
-      [{ ...mappedServices, virtual: true }]
+      { event: 'test:component:service:inject', args: [{ ...mappedServices, virtual: null }] },
+      { event: 'test:component:service:inject', args: [{ ...mappedServices, virtual: null }] },
+      { event: 'test:component:router:inject', args: [{ ...mappedServices, virtual: true }] },
+      { event: 'test:component:interceptor:inject', args: [mappedServices] }
     ]);
 
   });
