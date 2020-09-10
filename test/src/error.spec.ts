@@ -11,7 +11,7 @@ describe('ServerError', function() {
       const object: any = {
         message: error.message,
         code: error.code,
-        httpCode: error.httpCode,
+        statusCode: error.statusCode,
         error: error.error
       };
 
@@ -23,14 +23,14 @@ describe('ServerError', function() {
 
     expect(toNormalObject(new ServerError('Error message'))).to.deep.equal({
       message: 'Error message',
-      httpCode: 500,
+      statusCode: 500,
       code: 'UNKNOWN_ERROR',
       error: true
     });
 
     expect(toNormalObject(new ServerError('Error message', 400, 'TEST_ERROR'))).to.deep.equal({
       message: 'Error message',
-      httpCode: 400,
+      statusCode: 400,
       code: 'TEST_ERROR',
       error: true
     });
@@ -39,7 +39,7 @@ describe('ServerError', function() {
 
     expect(toNormalObject(ServerError.from(error1), true)).to.deep.equal({
       message: 'Native error',
-      httpCode: 500,
+      statusCode: 500,
       code: 'UNKNOWN_ERROR',
       error: true,
       stack: error1.stack
@@ -51,7 +51,7 @@ describe('ServerError', function() {
 
     expect(toNormalObject(ServerError.from(error2, 404, 'NATIVE_ERROR'), true)).to.deep.equal({
       message: 'Native error',
-      httpCode: 404,
+      statusCode: 404,
       code: 'NATIVE_ERROR',
       error: true,
       stack: error2.stack
@@ -63,7 +63,7 @@ describe('ServerError', function() {
 
     expect(toNormalObject(ServerError.from(error3, 404), true)).to.deep.equal({
       message: 'Native error',
-      httpCode: 404,
+      statusCode: 404,
       code: 'CUSTOM_CODE',
       error: true,
       stack: error3.stack

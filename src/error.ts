@@ -7,7 +7,7 @@ export class ServerError extends Error {
 
   constructor(
     public message: string,
-    public httpCode: number = 500,
+    public statusCode: number = 500,
     public code: string = 'UNKNOWN_ERROR'
   ) {
 
@@ -21,12 +21,12 @@ export class ServerError extends Error {
   /**
   * Returns a new ServerError from an Error object.
   * @param error An error object.
-  * @param httpCode The HTTP status code to use when responding to requests.
+  * @param statusCode The HTTP status code to use when responding to requests.
   * @param code An error code to override the error object's code (if any).
   */
-  public static from(error: Error, httpCode: number = 500, code?: string): ServerError {
+  public static from(error: Error, statusCode: number = 500, code?: string): ServerError {
 
-    const serverError = new ServerError(error.message, httpCode || 500, code || (<any>error).code);
+    const serverError = new ServerError(error.message, statusCode || 500, code || (<any>error).code);
 
     serverError.stack = error.stack;
 
@@ -41,7 +41,7 @@ export class ServerError extends Error {
   */
   public respond(res: Response, req?: Request) {
 
-    res.status(this.httpCode).json({
+    res.status(this.statusCode).json({
       error: this.error,
       message: this.message,
       code: this.code
@@ -50,9 +50,9 @@ export class ServerError extends Error {
     if ( ! ServerError.__logResponseErrors ) return;
 
     const logger = ((req && req.session) ? log.id(req.session.id) : log);
-    const loggerLevel = logger[this.httpCode === 500 ? 'warn' : 'debug'].bind(logger);
+    const loggerLevel = logger[this.statusCode === 500 ? 'warn' : 'debug'].bind(logger);
 
-    loggerLevel(`Responded to request with status ${this.httpCode} and error code "${this.code}"!`);
+    loggerLevel(`Responded to request with status ${this.statusCode} and error code "${this.code}"!`);
 
   }
 
