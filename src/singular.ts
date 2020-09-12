@@ -169,8 +169,7 @@ export class Singular {
             module: initializedModule
           });
 
-          // Cache log so it will be logged when the logger gets initialized
-          this.__cachedLogs.push({ level: 'debug', message: `Service "${initializedModule.__metadata.name}" installed` });
+          log.debug(`Service "${initializedModule.__metadata.name}" installed`);
 
         }
         else if ( initializedModule.__metadata.type === ModuleType.Router ) {
@@ -180,8 +179,7 @@ export class Singular {
             module: initializedModule
           });
 
-          // Cache log so it will be logged when the logger gets initialized
-          this.__cachedLogs.push({ level: 'debug', message: `Router "${initializedModule.__metadata.name}" installed` });
+          log.debug(`Router "${initializedModule.__metadata.name}" installed`);
 
         }
         else if ( initializedModule.__metadata.type === ModuleType.Interceptor ) {
@@ -189,17 +187,8 @@ export class Singular {
           // Avoid installation if onInterception was not implemented
           if ( typeof initializedModule.onInterception !== 'function' ) {
 
-            // Cache log so it will be logged when the logger gets initialized
-            this.__cachedLogs.push({ level: 'warn', message: `Interceptor "${initializedModule.__metadata.name}" does not implement OnInterception!` });
-            continue;
+            log.warn(`Interceptor "${initializedModule.__metadata.name}" does not implement OnInterception!`);
 
-          }
-
-          // Avoid installation if onInterception is async
-          if ( initializedModule.onInterception.constructor.name === 'AsyncFunction' ) {
-
-            // Cache log so it will be logged when the logger gets initialized
-            this.__cachedLogs.push({ level: 'warn', message: `Interceptor "${initializedModule.__metadata.name}" defines async onInterception!` });
             continue;
 
           }
@@ -209,8 +198,7 @@ export class Singular {
             module: initializedModule
           });
 
-          // Cache log so it will be logged when the logger gets initialized
-          this.__cachedLogs.push({ level: 'debug', message: `Interceptor "${initializedModule.__metadata.name}" installed` });
+          log.debug(`Interceptor "${initializedModule.__metadata.name}" installed`);
 
         }
 
@@ -228,11 +216,9 @@ export class Singular {
   /** Mounts all default middleware that should sit on top of the stack. */
   private __mountDefaultTopMiddleware() {
 
-    // Install interceptor middleware
-    this.__app.use((req, res, next) => {
+    // Install response extender middleware
+    this.__app.use((req: Request, res: Response, next) => {
 
-      const originalSend = res.send;
-      const originalJson = res.json;
       const url = new URL(`${req.protocol}://${req.get('host')}${req.originalUrl}`).pathname;
       const interceptors: SingularComponent[] = [];
 
@@ -246,31 +232,34 @@ export class Singular {
 
       }
 
-      // Monkey-patch methods to run interceptors
-      res.send = (body?: any) => {
-
-        let intercepted = _.cloneDeep(body);
+      // Define .respond on response object
+      res.respond = async (body: any) => {
 
         for ( const interceptor of interceptors ) {
 
-          intercepted = interceptor.module.onInterception(intercepted, req, res);
+          try {
+
+            body = await interceptor.module.onInterception(body, req, res);
+
+          }
+          catch (error) {
+
+            // Log error
+            (req.session ? log.id(req.session.id) : log).error(`Interceptor "${interceptor.name}" threw an error!`, error);
+
+            events.emit('error');
+
+            body = new ServerError(`An unknown error has occurred!`);
+            break;
+
+          }
 
         }
 
-        return originalSend(intercepted);
-
-      };
-      res.json = (body?: any) => {
-
-        let intercepted = _.cloneDeep(body);
-
-        for ( const interceptor of interceptors ) {
-
-          intercepted = interceptor.module.onInterception(intercepted, req, res);
-
-        }
-
-        return originalJson(intercepted);
+        if ( body instanceof ServerError ) body.respond(res, req);
+        else if ( body instanceof Error ) ServerError.from(body).respond(res, req);
+        else if ( !! body && typeof body === 'object' ) res.json(body);
+        else res.send(body);
 
       };
 
@@ -284,7 +273,7 @@ export class Singular {
     // Install cookie parser error handler
     this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 
-      new ServerError('Invalid cookies!', 400, 'INVALID_COOKIES').respond(res, req);
+      res.respond(new ServerError('Invalid cookies!', 400, 'INVALID_COOKIES'));
 
     });
 
@@ -308,7 +297,7 @@ export class Singular {
     // Install body parsing error
     this.__app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 
-      new ServerError('Invalid body!', 400, 'INVALID_BODY').respond(res, req);
+      res.respond(new ServerError('Invalid body!', 400, 'INVALID_BODY'));
 
     });
 
@@ -364,7 +353,7 @@ export class Singular {
   /** Mounts the predictive 404 middleware. */
   private __mountPredictive404() {
 
-    this.__app.use('*', (req: Request, res, next) => {
+    this.__app.use('*', (req: Request, res: Response, next) => {
 
       let matches: number = 0;
 
@@ -377,7 +366,7 @@ export class Singular {
       });
 
       if ( matches ) next();
-      else new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res, req);
+      else res.respond(new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND'));
 
     });
 
@@ -726,8 +715,8 @@ export class Singular {
     return (req: Request, res: Response, next: NextFunction) => {
 
       this.__executeAggregation(route, req)
-      .then(result => result.reject ? new ServerError(result.reason.message, 400, result.code).respond(res, req) : next())
-      .catch(error => ServerError.from(error, 500).respond(res, req));
+      .then(result => result.reject ? res.respond(new ServerError(result.reason.message, 400, result.code)) : next())
+      .catch(error => res.respond(ServerError.from(error, 500)));
 
     };
 
@@ -837,14 +826,14 @@ export class Singular {
 
                 if ( error instanceof ServerError ) {
 
-                  if ( ! res.headersSent ) error.respond(res, req);
+                  if ( ! res.headersSent ) res.respond(error);
 
                 }
                 else {
 
                   (req.session ? log.id(req.session.id) : log).error('An error has occured:', error);
 
-                  if ( ! res.headersSent ) new ServerError('An unknown error has occured!').respond(res, req);
+                  if ( ! res.headersSent ) res.respond(new ServerError('An unknown error has occured!'));
 
                 }
 
@@ -886,9 +875,9 @@ export class Singular {
     // Install 404 router
     if ( ! this.__config.predictive404 ) {
 
-      this.__app.use('*', (req: Request, res) => {
+      this.__app.use('*', (req: Request, res: Response) => {
 
-        new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND').respond(res, req);
+        res.respond(new ServerError(`Route ${this.__getLogPath(req)} not found!`, 404, 'ROUTE_NOT_FOUND'));
 
       });
 
@@ -902,7 +891,7 @@ export class Singular {
       (req.session ? log.id(req.session.id) : log).error('An error has occured:', error);
       events.emit('error', error);
 
-      if ( ! res.headersSent ) new ServerError('An unknown error has occured!').respond(res, req);
+      if ( ! res.headersSent ) res.respond(new ServerError('An unknown error has occured!'));
 
     });
 
