@@ -64,10 +64,7 @@ export class AuthRouter implements OnInjection, OnConfig {
 
     const uid = await this.users.createUser(req.body.username, req.body.password, req.body.manager);
 
-    // Set claim
-    if ( req?.session.isNew ) await session.setClaim(req.session.id, 'username', req.body.username);
-
-    res.json({ uid });
+    res.respond({ uid });
 
   }
 
@@ -89,22 +86,17 @@ export class AuthRouter implements OnInjection, OnConfig {
 
     const token = await this.users.authenticateUser(req.auth.username, req.auth.password);
 
-    // If session is new, set username claim
-    if ( req?.session.isNew ) {
+    // If logged in with existing session ID
+    if ( ! req?.session.isNew ) {
 
-      await session.setClaim(req.session.id, 'username', req.auth.username);
-
-    }
-    // Otherwise
-    else if ( ! req?.session.isNew ) {
-
+      // Read username assigned to current session ID
       const username: string = await session.getClaim(req.session.id, 'username');
 
-      // If username claim exist with different value
+      // If username claim exists with different value
       if ( username !== req.auth.username ) {
 
         // Generate new session ID
-        const newSessionId = session.generateId;
+        const newSessionId = session.generateId();
 
         // Reset cookie
         res.clearCookie('sessionId');
@@ -117,13 +109,13 @@ export class AuthRouter implements OnInjection, OnConfig {
 
     }
 
-    res.json({ token });
+    res.respond({ token });
 
   }
 
 }
 
-interface SignupRequest extends Request {
+export interface SignupRequest extends Request {
 
   body: {
     username: string;
@@ -133,7 +125,7 @@ interface SignupRequest extends Request {
 
 }
 
-interface BasicAuthRequest extends Request {
+export interface BasicAuthRequest extends Request {
 
   auth: {
     username: string;

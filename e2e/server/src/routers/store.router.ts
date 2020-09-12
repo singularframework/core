@@ -118,16 +118,16 @@ export class StoreRouter implements OnInjection {
   queryItems(req: Request, res: Response) {
 
     this.store.queryItems(req.params.q)
-    .then(result => res.json(result))
-    .catch(error => ServerError.from(error).respond(res, req));
+    .then(result => res.respond(result))
+    .catch(error => res.respond(ServerError.from(error)));
 
   }
 
   getItem(req: Request, res: Response) {
 
     StoreService.getItem(req.params.id)
-    .then(item => res.json(item))
-    .catch(error => ServerError.from(error, error.httpCode || 400).respond(res, req));
+    .then(item => res.respond(item))
+    .catch(error => res.respond(ServerError.from(error, error.httpCode || 400)));
 
   }
 
@@ -138,10 +138,10 @@ export class StoreRouter implements OnInjection {
 
       log.id(req.session.id).info(`Purchased item ${req.body.title} for user ${req.user.username}`);
 
-      res.json({ message: `Purchased item ${req.body.title} for user ${req.user.username}` });
+      res.respond({ message: `Purchased item ${req.body.title} for user ${req.user.username}` });
 
     })
-    .catch(error => ServerError.from(error).respond(res, req));
+    .catch(error => res.respond(ServerError.from(error)));
 
   }
 
@@ -152,10 +152,10 @@ export class StoreRouter implements OnInjection {
 
       log.id(req.session.id).info(`Manager "${req.user.username}" added a new item with ID "${id}".`);
 
-      res.json({ message: `Added new item with ID "${id}".` });
+      res.respond({ message: `Added new item with ID "${id}".` });
 
     })
-    .catch(error => ServerError.from(error).respond(res, req));
+    .catch(error => res.respond(ServerError.from(error)));
 
   }
 
@@ -166,10 +166,10 @@ export class StoreRouter implements OnInjection {
 
       log.id(req.session.id).info(`Manager "${req.user.username}" updated item "${req.params.id}"`);
 
-      res.json({ message: `Item "${req.params.id}" was updated` });
+      res.respond({ message: `Item "${req.params.id}" was updated` });
 
     })
-    .catch(error => ServerError.from(error).respond(res, req));
+    .catch(error => res.respond(ServerError.from(error)));
 
   }
 
@@ -180,10 +180,10 @@ export class StoreRouter implements OnInjection {
 
       log.id(req.session.id).notice(`Manager "${req.user.username}" deleted item "${req.params.id}"`);
 
-      res.json({ message: `Item "${req.params.id}" was deleted` });
+      res.respond({ message: `Item "${req.params.id}" was deleted` });
 
     })
-    .catch(error => ServerError.from(error).respond(res, req));
+    .catch(error => res.respond(ServerError.from(error)));
 
   }
 

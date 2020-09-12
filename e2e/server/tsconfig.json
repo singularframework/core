@@ -23,6 +23,7 @@
       "@pit/model/*": ["./src/models/*.model"],
       "@pit/service/*": ["./src/services/*.service"],
       "@pit/router/*": ["./src/routers/*.router"],
+      "@pit/interceptor/*": ["./src/interceptors/*.interceptor"],
       "@pit/middleware/*": ["./src/middleware/*.middleware"],
       "@pit/validator/*": ["./src/validators/*.validator"],
       "@pit/cors/*": ["./src/cors/*.policy"],

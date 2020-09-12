@@ -4,6 +4,22 @@ import { prodConfig } from './prod.config';
 import { KebabCaseErrorCodesPlugin } from './plugins/kebab-case-error-codes.plugin';
 import path from 'path';
 
+// // Manual testing
+// const paths = require(path.join(__dirname, '..', 'tsconfig.json')).compilerOptions.paths;
+//
+// for ( const aliases in paths ) {
+//
+//   paths[aliases] = paths[aliases].map(alias => path.join('..', alias).replace('src/', 'dist/'));
+//
+// }
+//
+// Singular
+// .install(KebabCaseErrorCodesPlugin)
+// .registerAliases(paths)
+// .config('dev', { ...devConfig, consoleLogLevels: 'all' })
+// .config('prod', { ...prodConfig, consoleLogLevels: 'all' })
+// .launch();
+
 export default () => {
 
   const paths = require(path.join(__dirname, '..', 'tsconfig.json')).compilerOptions.paths;

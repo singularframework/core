@@ -9,8 +9,6 @@ export function tokenProtected(router: RouterWithUsersService) {
     req.tokenData = await router.users.decryptToken(req.query.token);
     req.user = await router.users.getUser(req.tokenData.uid);
 
-    if ( req?.session.isNew ) await session.setClaim(req.session.id, 'username', req.user.username);
-
     next();
 
   };
