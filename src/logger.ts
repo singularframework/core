@@ -12,7 +12,7 @@ export class ServerLogger {
 
   constructor(
     private __core: ServerLoggerCore,
-    private __sessionId?: string
+    private __id?: string
   ) { }
 
   /**
@@ -20,7 +20,7 @@ export class ServerLogger {
   */
   public debug(message: any, ...additionalMessages: any[]) {
 
-    const log = this.__core.formatLog('debug', [message, ...additionalMessages], this.__sessionId);
+    const log = this.__core.formatLog('debug', [message, ...additionalMessages], this.__id);
 
     // Log to console
     if ( this.__core.canLog('console', 'debug') ) console.debug(log);
@@ -35,7 +35,7 @@ export class ServerLogger {
   */
   public info(message: any, ...additionalMessages: any[]) {
 
-    const log = this.__core.formatLog('info', [message, ...additionalMessages], this.__sessionId);
+    const log = this.__core.formatLog('info', [message, ...additionalMessages], this.__id);
 
     // Log to console
     if ( this.__core.canLog('console', 'info') ) console.log(log);
@@ -50,7 +50,7 @@ export class ServerLogger {
   */
   public notice(message: any, ...additionalMessages: any[]) {
 
-    const log = this.__core.formatLog('notice', [message, ...additionalMessages], this.__sessionId);
+    const log = this.__core.formatLog('notice', [message, ...additionalMessages], this.__id);
 
     // Log to console
     if ( this.__core.canLog('console', 'notice') ) console.log(log);
@@ -65,7 +65,7 @@ export class ServerLogger {
   */
   public warn(message: any, ...additionalMessages: any[]) {
 
-    const log = this.__core.formatLog('warn', [message, ...additionalMessages], this.__sessionId);
+    const log = this.__core.formatLog('warn', [message, ...additionalMessages], this.__id);
 
     // Log to console
     if ( this.__core.canLog('console', 'warn') ) console.warn(log);
@@ -80,7 +80,7 @@ export class ServerLogger {
   */
   public error(message: any, ...additionalMessages: any[]) {
 
-    const log = this.__core.formatLog('error', [message, ...additionalMessages], this.__sessionId);
+    const log = this.__core.formatLog('error', [message, ...additionalMessages], this.__id);
 
     // Log to console
     if ( this.__core.canLog('console', 'error') ) console.error(log);
@@ -91,12 +91,12 @@ export class ServerLogger {
   }
 
   /**
-  * Returns a new logger which prefixes all logs with the given session ID.
-  * @param sessionId A session ID.
+  * Returns a new logger which prefixes all logs with the given ID.
+  * @param id An ID.
   */
-  public id(sessionId: string): Omit<ServerLogger, 'id'> {
+  public id(id: string): Omit<ServerLogger, 'id'> {
 
-    return new ServerLogger(this.__core, sessionId);
+    return new ServerLogger(this.__core, id);
 
   }
 
