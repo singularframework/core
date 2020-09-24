@@ -101,7 +101,8 @@ export class StoreService implements OnInit {
 
       const doc: StoreItem = await fs.readJson(path.join(this.collectionPath, docPath));
 
-      if ( doc.title.match(query) ) matches.push({ id: doc.id, title: doc.title, type: doc.type });
+      if ( doc.title.match(query) || doc.artist.match(query) )
+        matches.push({ id: doc.id, title: doc.title, type: doc.type });
 
     }
 

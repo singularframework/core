@@ -9,17 +9,17 @@ export class KebabCaseErrorCodesPlugin implements PluginHooks.AfterConfig {
 
     class KebabCaseServerError extends ServerError {
 
-      constructor(message: string, httpCode: number = 500, code: string = 'unknown-error') {
+      constructor(message: string, statusCode: number = 500, code: string = 'unknown-error') {
 
-        super(message, httpCode, code.replace(/_/g, '-').toLowerCase());
+        super(message, statusCode, code.replace(/_/g, '-').toLowerCase());
 
       }
 
-      static from(error: Error, httpCode?: number, code?: string) {
+      static from(error: Error, statusCode?: number, code?: string) {
 
-        const serverError = super.from(error, httpCode, code);
+        const serverError = new KebabCaseServerError(error.message, statusCode || 500, code || (<any>error).code);
 
-        serverError.code = serverError.code.replace(/_/g, '-').toLowerCase();
+        serverError.stack = error.stack;
 
         return serverError;
 

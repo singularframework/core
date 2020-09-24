@@ -52,7 +52,11 @@ import { corsPolicy } from '@pit/cors/global';
       })
     ]),
     // The following endpoints are all protected by manager access scope
-    route.all('/', 'managerAccessProtected'),
+    route.global('/', ['tokenProtected', 'managerAccessProtected'], [
+      validate.queries({
+        token: should.be.a.non.empty.string.otherwise('Missing token!')
+      })
+    ]),
     route.post('/item/new', 'newItem', [
       jsonBodyValidator,
       validate.body({
@@ -60,10 +64,10 @@ import { corsPolicy } from '@pit/cors/global';
         title: should.be.a.non.empty.string,
         artist: should.be.a.non.empty.string,
         releaseDate: should.be.a.date.number,
-        tracks: should.be.an.array.with.length.gt(0).and.children({
+        tracks: should.be.an.array.with.children({
           title: that.is.a.non.empty.string,
           length: that.is.a.positive.number
-        }),
+        }).and.length.gt(0),
         price: should.be.a.positive.number,
         stock: should.be.a.number.gte(0)
       })
@@ -78,10 +82,10 @@ import { corsPolicy } from '@pit/cors/global';
         title: could.be.a.non.empty.string,
         artist: could.be.a.non.empty.string,
         releaseDate: could.be.a.date.number,
-        tracks: could.be.an.array.with.length.gt(0).and.children({
+        tracks: could.be.an.array.with.children({
           title: that.is.a.non.empty.string,
           length: that.is.a.positive.number
-        }),
+        }).and.length.gt(0),
         price: could.be.a.positive.number,
         stock: could.be.a.number.gte(0)
       }),
@@ -115,11 +119,9 @@ export class StoreRouter implements OnInjection {
 
   get managerAccessProtected() { return managerAccessProtected; }
 
-  queryItems(req: Request, res: Response) {
+  async queryItems(req: Request, res: Response) {
 
-    this.store.queryItems(req.params.q)
-    .then(result => res.respond(result))
-    .catch(error => res.respond(ServerError.from(error)));
+    await res.respond(await this.store.queryItems(<string>req.query.q));
 
   }
 
@@ -152,7 +154,7 @@ export class StoreRouter implements OnInjection {
 
       log.id(req.session.id).info(`Manager "${req.user.username}" added a new item with ID "${id}".`);
 
-      res.respond({ message: `Added new item with ID "${id}".` });
+      res.respond({ id });
 
     })
     .catch(error => res.respond(ServerError.from(error)));

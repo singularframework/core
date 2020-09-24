@@ -64,6 +64,34 @@ export class AuthRouter implements OnInjection, OnConfig {
 
     const uid = await this.users.createUser(req.body.username, req.body.password, req.body.manager);
 
+    // If signed up with existing session ID
+    if ( ! req?.session.isNew ) {
+
+      // Read username assigned to current session ID
+      const username: string = await session.getClaim(req.session.id, 'username');
+
+      // If username claim exists with different value
+      if ( username !== req.body.username ) {
+
+        // Generate new session ID
+        const newSessionId = session.generateId();
+
+        // Reset cookie
+        res.clearCookie('sessionId');
+        res.cookie('sessionId', newSessionId, { signed: !! this.config.cookieSecret });
+
+        // Map old session ID to the new one
+        await session.setClaim(req.session.id, 'mapped', newSessionId);
+
+        // Swap session IDs
+        req.session.isNew = true;
+        req.session.id = newSessionId;
+        await session.created(newSessionId);
+
+      }
+
+    }
+
     res.respond({ uid });
 
   }
@@ -104,6 +132,11 @@ export class AuthRouter implements OnInjection, OnConfig {
 
         // Map old session ID to the new one
         await session.setClaim(req.session.id, 'mapped', newSessionId);
+
+        // Swap session IDs
+        req.session.isNew = true;
+        req.session.id = newSessionId;
+        await session.created(newSessionId);
 
       }
 

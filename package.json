@@ -12,7 +12,7 @@
     "build-e2e-server": "echo \"Building the E2E server...\" && node ./node_modules/rimraf/bin.js \"./e2e/server/dist\" && ./node_modules/typescript/bin/tsc -p e2e/server/tsconfig.json",
     "build-e2e-tests": "echo \"Building the E2E tests...\" && node ./node_modules/rimraf/bin.js \"./e2e/dist\" && ./node_modules/typescript/bin/tsc -p e2e/tsconfig.json",
     "run-e2e-tests": "echo \"Running the E2E tests...\" && ./node_modules/mocha/bin/mocha ./e2e/dist/main.spec.js",
-    "copy-e2e-assets": "echo \"Copying E2E assets...\" && ./node_modules/copyfiles/copyfiles -f \"./e2e/server/src/credentials/*.pem\" ./e2e/server/dist/credentials"
+    "copy-e2e-assets": "echo \"Copying E2E assets...\" && ./node_modules/copyfiles/copyfiles -f \"./e2e/server/src/credentials/*.pem\" ./e2e/server/dist/credentials && ./node_modules/copyfiles/copyfiles -f \"./e2e/src/data/*.json\" ./e2e/dist/data"
   },
   "repository": {
     "type": "git",
@@ -73,7 +73,7 @@
     "@types/source-map-support": "^0.5.3",
     "bcrypt": "^5.0.0",
     "chai": "^4.2.0",
-    "cpy": "^8.1.1",
+    "copyfiles": "^2.3.0",
     "fast-levenshtein": "^3.0.0",
     "got": "^11.6.1",
     "jsonwebtoken": "^8.5.1",

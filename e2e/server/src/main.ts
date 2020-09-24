@@ -34,8 +34,8 @@ export default () => {
   return Singular
   .install(KebabCaseErrorCodesPlugin)
   .registerAliases(paths)
-  .config('dev', devConfig)
-  .config('prod', prodConfig)
+  .config('dev', Object.assign({}, devConfig, { tokenSecret: process.env.PIT_TOKEN_SECRET }))
+  .config('prod', Object.assign({}, prodConfig, { tokenSecret: process.env.PIT_TOKEN_SECRET }))
   .launch();
 
 };
