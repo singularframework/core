@@ -73,7 +73,7 @@ export class Singular {
     fileUploadLimit: '10mb',
     excludeHeadersInLogs: [],
     logRequestHeaders: false,
-    logResponseMessages: true,
+    logResponseErrors: true,
     excludeQueryParamsInLogs: [],
     sessionManagement: false,
     cookieSecret: undefined,
