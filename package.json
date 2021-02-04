@@ -1,6 +1,6 @@
 {
   "name": "@singular/core",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Singular framework core module",
   "main": "dist/core.js",
   "scripts": {
