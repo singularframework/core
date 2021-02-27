@@ -798,15 +798,7 @@ export class Singular {
 
           const policy = route.corsPolicy || router.module.__metadata.corsPolicy || { origin: true };
 
-          handlers.push(cors({
-            origin: policy.origin,
-            methods: policy.methods,
-            allowedHeaders: policy.allowedHeaders,
-            exposedHeaders: policy.exposedHeaders,
-            credentials: policy.credentials,
-            maxAge: policy.maxAge,
-            optionsSuccessStatus: policy.optionsSuccessStatus
-          }));
+          handlers.push(cors(policy));
 
         }
 
