@@ -14,6 +14,9 @@
     "run-e2e-tests": "echo \"Running the E2E tests...\" && ./node_modules/mocha/bin/mocha ./e2e/dist/main.spec.js",
     "copy-e2e-assets": "echo \"Copying E2E assets...\" && ./node_modules/copyfiles/copyfiles -f \"./e2e/server/src/credentials/*.pem\" ./e2e/server/dist/credentials && ./node_modules/copyfiles/copyfiles -f \"./e2e/src/data/*.json\" ./e2e/dist/data"
   },
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/singularframework/core.git"
