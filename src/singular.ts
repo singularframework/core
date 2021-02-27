@@ -203,7 +203,12 @@ export class Singular {
         }
 
       }
-      catch {
+      catch (error) {
+
+        // Decide if module is a class
+        const match = module.toString().trim().match(/^class\s+(.+(?<type>(Service)|(Router)|(Interceptor)))\s+{/);
+
+        if ( match ) log.warn(`${match.groups.type} component "${module.name}" in file "${filename}" was not installed due to an error:\n${error}`);
 
         continue;
 
