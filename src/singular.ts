@@ -299,8 +299,8 @@ export class Singular {
     this.__app.use(bodyParser.urlencoded({ extended: true }));
     this.__app.use((req, res, next) => {
 
-      // If header X-Body-Parser: skip is present, skip body parsing
-      if ( req.headers['x-body-parser'] === 'skip' ) next();
+      // If header X-Octet-Stream: chunked is present, skip body parsing
+      if ( req.headers['x-octet-stream'] === 'chunked' ) next();
       else bodyParser.raw({ type: 'application/octet-stream', limit: this.__config.fileUploadLimit })(req, res, next);
 
     });
